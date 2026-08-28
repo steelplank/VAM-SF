@@ -6,7 +6,6 @@
 #   '#' starts a comment.  Uncomment an example, or write your own, under
 #   WRITE BELOW at the bottom.  Read by the VAM_Generator effect.
 #
-#
 # --- AT A GLANCE -------------------------------------------------------------
 #
 #     0:9                AR 9 from the start
@@ -20,68 +19,64 @@
 #     60000:6            x6 fall speed   (1 normal | <1 slow | 0 freeze)
 #     61000:1            always end back at x1
 #
-#
 # --- AR ----------------------------------------------------------------------
 #
 #     time:ar     eased between keyframes; held before the first & after the last.
 #
-#   Flags (after the AR, any order):   time:ar:flag:flag
+#     Flags (after the AR, any order):   time:ar:flag:flag
 #     easing    linear/none, sine, sinein, sineout, quad(in/out), cubic(in/out)
 #               default = the effect's Easing setting (SineInOut)
 #     after     snap INTO this keyframe    (a sudden change)
 #     before    snap OUT of this keyframe
 #     hd=N      fake Hidden (see below)
 #
-#
 # --- HIDDEN ------------------------------------------------------------------
 #
-#   hd=0..10   (needs EnableHidden, on by default).  Keeps osu!'s exact fade
-#   width and just slides WHERE it happens, about 8% of the fall per step:
+#     hd=0..10   (needs EnableHidden, on by default).  Keeps osu!'s exact fade
+#     width and just slides WHERE it happens, about 8% of the fall per step:
 #
 #     hd=0       off, fully visible
-#     hd=1-4     fade lower   -> vanishes later     (easier)
-#     hd=5       osu!'s normal Hidden   (same as a bare "hd")
-#     hd=6-9     fade higher  -> vanishes sooner    (harder)
-#     hd=10      hardest, gone as it appears
+#     hd=false   ^
+#     hd=1-4     fade lower -> vanishes later
+#     hd=5       osu!'s normal Hidden (same as a bare "hd")
+#     hd=6-9     fade higher -> vanishes sooner
+#     hd=10      objects are fully hidden as they appear
 #
-#   hd=false = off.    Decimals ok (hd=6.5).    Ramps with AR's easing/scope.
-#
+#     Decimals ok (hd=6.5). Ramps with AR's easing/scope.
 #
 # --- SCROLL VELOCITY ---------------------------------------------------------
 #
-#   Its own [sv] header, then  time:multiplier.
-#   A x-multiplier on the AR fall speed: reshapes how fast EVERY object falls,
-#   yet each still lands on its exact beat (1:1-safe).
+#     Its own [sv] header, then  time:multiplier.
+#     A x-multiplier on the AR fall speed: reshapes how fast EVERY object falls,
+#     yet each still lands on its exact beat.
 #
 #     1 normal    |    >1 faster    |    <1 slower    |    0 frozen   (never < 0)
 #
-#   STEPPED - a value holds until the next line, then snaps (no easing).
-#   It is x1 before the first line and HOLDS the last, so END WITH :1.
-#   Hidden is left alone while SV is running.
-#
+#     STEPPED - a value holds until the next line, then snaps (no easing).
+#     It is x1 before the first line and HOLDS the last, so END WITH :1.
+#     Hidden is left alone while SV is running.
 #
 # --- EXAMPLES  (copy under WRITE BELOW, then delete the leading '#') ----------
 #
-#   smooth AR ride
+#     ~smooth AR ride~
 #     0:8
 #     45000:10
 #     90000:9.5
 #
-#   sudden AR spike + Hidden on, in one line
+#     ~sudden AR spike + Hidden on, in one line~
 #     120000:10.5:after:hd=5
 #
-#   Hidden fades in 60->65s, out 90->95s, AR steady
+#     ~Hidden fades in 60->65s, out 90->95s, AR steady~
 #     60000:9:hd=0
 #     65000:9:hd=5
 #     90000:9:hd=5
 #     95000:9:hd=0
 #
-#   SV: rush / freeze / creep / recover
+#     ~SV: rush / freeze / creep / recover~
 #     [sv]
 #     60000:6
 #     60500:0
 #     60900:0.15
 #     61200:1
-#
 #
 # ============================  WRITE BELOW  ==================================
