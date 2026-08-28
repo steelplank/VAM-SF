@@ -1,130 +1,87 @@
 # =============================================================================
-#  VAM:SF  -  Variable AR Modification: Storybrew Framework  -  AR / HD profile
+#   VAM:SF profile  -  AR / Hidden / Scroll Velocity  on one timeline
 # =============================================================================
 #
-#  This file programs the dynamic Approach Rate AND the fake Hidden over time,
-#  on ONE shared timeline. Put it in your storybrew PROJECT folder (next to the
-#  .cs effects). The VAM_Generator effect reads it via its "ProfilePath" field
-#  (default: VAM-profile.txt). While this file has at least one real keyframe,
-#  it OVERRIDES the ArKeyframes / HdKeyframes text fields in the effect.
+#   One keyframe per line.  time = milliseconds (osu! editor timeline).
+#   '#' starts a comment.  Uncomment an example, or write your own, under
+#   WRITE BELOW at the bottom.  Read by the VAM_Generator effect.
 #
-#  Everything below starting with '#' (or '//') is a comment and is ignored.
-#  Delete the '#' in front of the example lines, or write your own, to activate.
 #
-# -----------------------------------------------------------------------------
-#  FORMAT  (one keyframe per line):
+# --- AT A GLANCE -------------------------------------------------------------
 #
-#      time : ar [ : flag [ : flag ... ] ]
+#     0:9                AR 9 from the start
+#     45000:10           ease to AR 10 by 45s
+#     60000:10:after     SNAP to 10 (no ease)
+#     60000:9:sinein     ease in with a named curve
+#     60000:9:hd=5       add fake Hidden   (0 off | 5 normal | 10 hardest)
+#     95000:-:hd=0       Hidden only, leave AR unchanged
 #
-#    time   whole milliseconds (same timeline as the osu! editor).
-#    ar     the approach rate at that time (e.g. 9.2). Between keyframes the AR
-#           is interpolated; before the first / after the last it is held.
+#     [sv]               start the Scroll Velocity section
+#     60000:6            x6 fall speed   (1 normal | <1 slow | 0 freeze)
+#     61000:1            always end back at x1
 #
-#  FLAGS are all optional, in any order, case-insensitive:
 #
-#    easing     how the value eases INTO this keyframe. One of:
-#                 linear (or none), sine, sinein, sineout,
-#                 quad, quadin, quadout, cubic, cubicin, cubicout
-#               Default: the effect's Easing setting (SineInOut) when easing is on.
+# --- AR ----------------------------------------------------------------------
 #
-#    scope      which side of the keyframe is smooth vs. an INSTANT step:
-#                 both     (default) eased on both sides
-#                 after    the change INTO this keyframe is INSTANT  <-- SUDDEN change
-#                 before   the change OUT of this keyframe is INSTANT
+#     time:ar     eased between keyframes; held before the first & after the last.
 #
-#    hd         fake Hidden at this time. (Requires EnableHidden on the effect, which
-#               is ON by default.) The fade always keeps osu!'s exact fade WIDTH; the
-#               0..10 number only slides WHERE on the screen it happens ("the line"),
-#               uniformly - each step of 1 moves the line by 8% of the fall:
-#                 hd=0    OFF - objects stay fully visible
-#                 hd=5    osu!'s DEFAULT Hidden  (== bare "hd", == hd=true)
-#                 hd=10   HARDEST - fruit fades out the instant it appears (line at top)
-#                 hd=1..4 line sits LOWER  -> fruit vanishes closer to the catcher (easier)
-#                 hd=6..9 line sits HIGHER -> fruit vanishes sooner (harder)
-#               Bare "hd" (no number) means the normal osu! Hidden (same as hd=5).
-#               hd=false turns it off (same as hd=0). Decimals are fine (e.g. hd=6.5).
-#               The value ramps between hd keyframes using the SAME easing / scope as AR.
+#   Flags (after the AR, any order):   time:ar:flag:flag
+#     easing    linear/none, sine, sinein, sineout, quad(in/out), cubic(in/out)
+#               default = the effect's Easing setting (SineInOut)
+#     after     snap INTO this keyframe    (a sudden change)
+#     before    snap OUT of this keyframe
+#     hd=N      fake Hidden (see below)
 #
-#  An HD-only keyframe (no AR change here) may leave the AR blank or use '-':
-#      95000:-:hd=0
 #
-# -----------------------------------------------------------------------------
-#  EXAMPLES
+# --- HIDDEN ------------------------------------------------------------------
 #
-#  Smooth AR ride (eased):
-#      0:8
-#      45000:10
-#      90000:9.5
+#   hd=0..10   (needs EnableHidden, on by default).  Keeps osu!'s exact fade
+#   width and just slides WHERE it happens, about 8% of the fall per step:
 #
-#  SUDDEN AR change at 60s (hold 8 up to 60s, then snap to 10) - one line does it:
-#      0:8
-#      60000:10:after
+#     hd=0       off, fully visible
+#     hd=1-4     fade lower   -> vanishes later     (easier)
+#     hd=5       osu!'s normal Hidden   (same as a bare "hd")
+#     hd=6-9     fade higher  -> vanishes sooner    (harder)
+#     hd=10      hardest, gone as it appears
 #
-#  Different easing per segment (ease OUT into the drop, ease IN out of it):
-#      0:9:sineout
-#      30000:6:sinein
+#   hd=false = off.    Decimals ok (hd=6.5).    Ramps with AR's easing/scope.
 #
-#  Hidden that fades IN over 60s->65s and OUT over 90s->95s, AR steady at 9
-#  (hd=5 is osu!'s normal Hidden; push toward hd=10 for a harder fade higher on screen):
-#      60000:9:hd=0
-#      65000:9:hd=5
-#      90000:9:hd=5
-#      95000:9:hd=0
 #
-#  Instant Hidden ON at a drop, together with a sudden AR spike:
-#      120000:10.5:after:hd=5
+# --- SCROLL VELOCITY ---------------------------------------------------------
 #
-# =============================================================================
-#  SCROLL VELOCITY  -  [sv]  (mania-style SV for osu!catch)
-# =============================================================================
+#   Its own [sv] header, then  time:multiplier.
+#   A x-multiplier on the AR fall speed: reshapes how fast EVERY object falls,
+#   yet each still lands on its exact beat (1:1-safe).
 #
-#  Scroll Velocity puts a SECOND timeline on top of AR: a single velocity
-#  MULTIPLIER that reshapes how fast EVERY object falls at each moment. Spike it
-#  and the whole field rushes down; drop it and everything crawls or freezes;
-#  return it to 1 and it's back to normal. AR still sets the base fall speed and
-#  overall feel - SV just scales that base speed over time.
+#     1 normal    |    >1 faster    |    <1 slower    |    0 frozen   (never < 0)
 #
-#  It is 1:1-safe: no matter what SV does mid-fall, every object still reaches
-#  the catcher at its EXACT hit time and x. Only the approach (how it gets there)
-#  is reshaped, exactly like AR. Think of it as osu! slider velocity, but driving
-#  the fall of the fruit instead of a slider.
+#   STEPPED - a value holds until the next line, then snaps (no easing).
+#   It is x1 before the first line and HOLDS the last, so END WITH :1.
+#   Hidden is left alone while SV is running.
 #
-#  SV lives in its OWN section, written as a [sv] header followed by keyframes.
-#  It does NOT mix with the AR/HD lines above - those stay top-level, this goes
-#  under [sv]. (Requires "EnableScrollVelocity" on the effect, which is ON by
-#  default; with no [sv] section it does nothing.)
 #
-# -----------------------------------------------------------------------------
-#  FORMAT  (under a [sv] header, one keyframe per line):
+# --- EXAMPLES  (copy under WRITE BELOW, then delete the leading '#') ----------
 #
-#      time : multiplier
+#   smooth AR ride
+#     0:8
+#     45000:10
+#     90000:9.5
 #
-#    time        whole milliseconds (same timeline as AR/HD and the editor).
-#    multiplier  velocity multiplier on the normal (AR) fall speed:
-#                  1     normal speed
-#                  >1    faster  (e.g. 6 = objects fall 6x as fast)
-#                  <1    slower  (e.g. 0.15 = slow creep)
-#                  0     frozen in place
-#                Never negative.
+#   sudden AR spike + Hidden on, in one line
+#     120000:10.5:after:hd=5
 #
-#  SV is STEPPED, not eased: a value holds until the next keyframe, then snaps.
-#  It is 1 before the first keyframe, and HOLDS the last value after the last -
-#  so ALWAYS end with a ":1" line to hand control back to normal AR.
-#  (There are no easing/scope flags here - SV is instant by design. HD is left
-#  untouched while SV is driving.)
+#   Hidden fades in 60->65s, out 90->95s, AR steady
+#     60000:9:hd=0
+#     65000:9:hd=5
+#     90000:9:hd=5
+#     95000:9:hd=0
 #
-# -----------------------------------------------------------------------------
-#  EXAMPLE  -  a "rush / freeze / creep / recover" burst (delete the '#' to use):
+#   SV: rush / freeze / creep / recover
+#     [sv]
+#     60000:6
+#     60500:0
+#     60900:0.15
+#     61200:1
 #
-#      [sv]
-#      60000:6        # 60.0s: everything suddenly rushes down at 6x
-#      60500:0        # 60.5s: dead stop - the field freezes in place
-#      60900:0.15     # 60.9s: unfreeze into a slow creep
-#      61200:1        # 61.2s: back to normal (ALWAYS return to 1)
 #
-#  You can keep AR/HD keyframes above and this [sv] block in the same file; they
-#  run together on the same timeline.
-#
-# -----------------------------------------------------------------------------
-#  Write your keyframes below this line:
-# =============================================================================
+# ============================  WRITE BELOW  ==================================

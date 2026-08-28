@@ -3,7 +3,7 @@ using System.IO;
 namespace StorybrewScripts.Vam
 {
     // storybrew's Beatmap object doesn't expose the .osu file path, so we locate the
-    // difficulty file inside the mapset folder ourselves (CitrusVortex reads raw .osu lines).
+    // difficulty file inside the mapset folder ourselves (CtbLoader reads raw .osu lines).
     // Matches first by BeatmapID, then by difficulty Version, then falls back to the only .osu.
     public static class VamOsuPathResolver
     {

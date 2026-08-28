@@ -4,16 +4,16 @@ using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Threading;
-using CitrusVortex.Targets.Osu;
-using CitrusVortex.Targets.Osu.Conversion;
-using CitrusVortex.Targets.Osu.Serialization;
-using CvColor = CitrusVortex.Common.Color;
+using CtbLoader.Targets.Osu;
+using CtbLoader.Targets.Osu.Conversion;
+using CtbLoader.Targets.Osu.Serialization;
+using CvColor = CtbLoader.Common.Color;
 
 namespace StorybrewScripts.Vam
 {
-    // Loads a .osu file, runs it through CitrusVortex (osu! -> osu!catch), and flattens
+    // Loads a .osu file, runs it through CtbLoader (osu! -> osu!catch), and flattens
     // the result into the framework's own List<VamObject>, complete with combo colours
-    // and hyperdash flags. This is the single bridge between CitrusVortex and the effects.
+    // and hyperdash flags. This is the single bridge between CtbLoader and the effects.
     public static class VamLoader
     {
         // osu! stable default combo colours (used only when the map specifies none).
@@ -27,7 +27,7 @@ namespace StorybrewScripts.Vam
 
         public static VamBeatmap Load(string osuPath, bool computeHyperDash = true)
         {
-            // CitrusVortex parses ".osu" numbers with the current culture in several places.
+            // CtbLoader parses ".osu" numbers with the current culture in several places.
             // Force invariant so decimal points parse correctly regardless of the OS locale
             // (e.g. Polish/German comma-decimal machines), then restore.
             var previousCulture = Thread.CurrentThread.CurrentCulture;

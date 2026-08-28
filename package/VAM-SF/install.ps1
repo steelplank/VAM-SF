@@ -46,18 +46,35 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# ---------- what VAM installs (used for detection + clean removal) ----------
 $EffectFiles  = @('VAM_Generator.cs','VAM_Cover.cs','VAM_Flashlight.cs','VAM_Countdown.cs')
-$LibFolders   = @('scriptslibrary/VAM','scriptslibrary/CitrusVortex')
+$LibFolders   = @('scriptslibrary/VAM')
 $ProfileFile  = 'VAM-profile.txt'
 $SpriteRel    = 'sb/vam'
 
-# ---------- output helpers ----------
 function Info($m){ Write-Host "  $m" }
 function Good($m){ Write-Host "  [OK] $m" -ForegroundColor Green }
 function Warn($m){ Write-Host "  [!]  $m" -ForegroundColor Yellow }
 function Step($m){ Write-Host "" ; Write-Host $m -ForegroundColor Cyan }
 function Die ($m){ Write-Host "`n[X] $m" -ForegroundColor Red; Write-Host "Aborted - no destructive step was completed." -ForegroundColor Red; exit 1 }
+
+# ---------- banner ----------
+function Show-Banner {
+    $art = @(
+        '____   _________      _____          ____________________',
+        '\   \ /   /  _  \    /     \   /\   /   _____/\_   _____/',
+        ' \   Y   /  /_\  \  /  \ /  \  \/   \_____  \  |    __)  ',
+        '  \     /    |    \/    Y    \ /\   /        \ |     \   ',
+        '   \___/\____|__  /\____|__  / \/  /_______  / \___  /   ',
+        '                \/         \/              \/      \/    '
+    )
+
+    Write-Host ""
+    foreach ($l in $art){ Write-Host $l -ForegroundColor Cyan }
+    Write-Host ""
+    Write-Host " Variable AR Modification: Storybrew Framework" -ForegroundColor DarkCyan
+    Write-Host " installer / manager   v0.21" -ForegroundColor DarkGray
+    Write-Host " -------------------------------------------------" -ForegroundColor DarkCyan
+}
 
 # ---------- file helpers (bracket-safe: mapset folders like '... [no video]') ----------
 function Copy-Merge([string]$src, [string]$dst){
@@ -80,8 +97,6 @@ function Remove-PathSafe([string]$p){
     if (Test-Path -LiteralPath $p){ Remove-Item -LiteralPath $p -Recurse -Force -ErrorAction SilentlyContinue }
 }
 
-# ---------- .osu editing ----------
-# Ensure "Key: value" exists inside [General] (updates or inserts).
 function Set-OsuFlag([System.Collections.Generic.List[string]]$lines, [string]$key, [string]$value){
     $genStart = -1
     for ($i = 0; $i -lt $lines.Count; $i++){ if ($lines[$i].Trim() -eq '[General]'){ $genStart = $i; break } }
@@ -99,7 +114,6 @@ function Set-OsuFlag([System.Collections.Generic.List[string]]$lines, [string]$k
     $lines.Insert($genStart + 1, "${key}: ${value}")
 }
 
-# Find [Section] bounds. Returns @{Start=<header idx or -1>; End=<exclusive body end>}.
 function Get-Section([System.Collections.Generic.List[string]]$lines, [string]$name){
     $start = -1
     for ($i = 0; $i -lt $lines.Count; $i++){ if ($lines[$i].Trim() -eq $name){ $start = $i; break } }
@@ -152,7 +166,6 @@ function Edit-OsuStripCombos([System.Collections.Generic.List[string]]$lines){
     }
 }
 
-# ---------- state ----------
 function Read-Lines([string]$path){
     $raw = [System.IO.File]::ReadAllText($path)
     $list = [System.Collections.Generic.List[string]]::new()
@@ -169,8 +182,7 @@ if (-not $Here){ $Here = Split-Path -Parent $MyInvocation.MyCommand.Path }
 $BackupRoot = Join-Path $Here 'backups'
 $StateFile  = Join-Path $Here '.vam-state.json'
 
-Write-Host ""
-Write-Host "=== VAM-SF installer / manager (v2.1) ===" -ForegroundColor Cyan
+Show-Banner
 
 # --- locate the storybrew project ---
 if (-not $ProjectPath){
@@ -187,7 +199,7 @@ if (-not $ProjectPath -or -not (Test-Path -LiteralPath $ProjectPath)){
 }
 Good "project: $ProjectPath"
 
-# --- resolve the mapset (song) folder ---
+# --- resolve the mapset folder ---
 if (-not $MapsetPath){
     $userYaml = Join-Path $ProjectPath '.sbrew/user.yaml'
     if (Test-Path -LiteralPath $userYaml){
@@ -268,7 +280,6 @@ function Do-InstallCore([bool]$isUpgrade){
     if ($isUpgrade){ Step "Upgrading (removing old VAM code first)..."; Remove-VamCode }
 
     Step "Installing framework code -> project"
-    # effects + scriptslibrary, but DO NOT overwrite an existing VAM-profile.txt (user's keyframes)
     $keepProfile = Test-Path -LiteralPath (Join-Path $ProjectPath $ProfileFile)
     Get-ChildItem -LiteralPath $ScriptsSrc -Force | ForEach-Object {
         if ($_.Name -eq $ProfileFile -and $keepProfile){ return }
@@ -276,7 +287,7 @@ function Do-InstallCore([bool]$isUpgrade){
         else { [System.IO.File]::Copy($_.FullName, (Join-Path $ProjectPath $_.Name), $true) }
     }
     if (-not (Test-Path -LiteralPath (Join-Path $ProjectPath 'VAM_Generator.cs'))){ Die "Copy check failed: VAM_Generator.cs not in project." }
-    if (-not (Test-Path -LiteralPath (Join-Path $ProjectPath 'scriptslibrary/CitrusVortex/OsuV14BeatmapDeserializer.cs'))){ Die "Copy check failed: CitrusVortex not copied." }
+    if (-not (Test-Path -LiteralPath (Join-Path $ProjectPath 'scriptslibrary/VAM/CtbLoader/OsuV14BeatmapDeserializer.cs'))){ Die "Copy check failed: map loader not copied." }
     Good "code installed$(if($keepProfile){' (kept your existing VAM-profile.txt)'})"
 
     Step "Installing sprites -> mapset"
@@ -294,7 +305,7 @@ function Do-InstallCore([bool]$isUpgrade){
 
     # state file
     $state = @{
-        version   = '2.1'
+        version   = '0.21'
         project   = $ProjectPath
         mapset    = $MapsetPath
         osu       = @($osuFiles | ForEach-Object { $_.Name })
@@ -326,7 +337,6 @@ function Do-Uninstall {
         Good "removed sprites (sb\vam) from the mapset"
     }
 
-    # revert .osu from backups
     if (Test-Path -LiteralPath $BackupRoot){
         $reverted = 0; $missing = 0
         Get-ChildItem -LiteralPath $BackupRoot -Directory -ErrorAction SilentlyContinue | ForEach-Object {
@@ -358,7 +368,6 @@ function Do-OsuMod {
     Good "$($osuFiles.Count) .osu modified (originals safe in backups)."
 }
 
-# ---------- pick an action ----------
 function Confirm-Or-Exit($summary){
     if ($Force){ return }
     Write-Host ""

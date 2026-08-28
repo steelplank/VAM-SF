@@ -13,7 +13,7 @@ namespace StorybrewScripts.Vam
 
     // A single, flattened, renderable catch object.
     // This is the framework's own model: it decouples every effect from the
-    // CitrusVortex tree (juice streams / banana showers are already expanded here).
+    // CtbLoader tree (juice streams / banana showers are already expanded here).
     public class VamObject
     {
         public VamObjectType Type;
