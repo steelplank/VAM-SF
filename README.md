@@ -21,6 +21,9 @@ Using storyboard and overlay layer, we can generate gameplay objects identical t
 - **Dynamic AR** - control and change AR during gameplay using keyframes with easing!
 - **Fake Hidden** - add hidden to the mix with adjustable HD strength!
 - **Scroll Velocity** - mania-style SV: rush, slow, or freeze the whole field!
+- **Player Skin Support** - with this enabled, skin elements are dynamically used! Rotation for square skins is fully supported!
+- **Miss Simulator** - fake "osu-like" simulation of a miss where the object will fall below the platter. (fruits-only feature)
+- **Map Combo Colors** - an option to use map combo colors. (work in progress)
 - **Countdown** - overlay can and will cover osu! built-in countdown so we have our own implementation! (work in progress)
 - **Flashlight** - fake flashlight that follows the objects, not the catcher! (work in progress)
 
@@ -60,7 +63,7 @@ Early alpha (**v0.21**) with not much testing besides my own machines. Flashligh
 
 ## Credits
 
-- Phob - done almost entire beatmap converter <3
+- Phob - provided almost entire beatmap converter <3
 
 ## License
 
