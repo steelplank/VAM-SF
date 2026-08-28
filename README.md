@@ -6,6 +6,14 @@ VAM renders a pixel-accurate storyboard copy of an osu!catch map with a fake dyn
 
 ![status](https://img.shields.io/badge/status-alpha%20v0.21-orange)
 
+| Dynamic AR | Scroll Velocity |
+|:---:|:---:|
+| ![](docs/ar.gif) | ![](docs/sv.gif) |
+
+| Fake Hidden | Skin Support |
+|:---:|:---:|
+| ![](docs/hd.gif) | ![](docs/skin.gif) |
+
 ---
 
 ## What it does
@@ -18,7 +26,9 @@ Using storyboard and overlay layer, we can generate gameplay objects identical t
 
 ## Features
 
-- **Dynamic AR** - control and change AR during gameplay using keyframes with easing!
+- **Installator and helper** - easy install script including modifying the .osu file to make your life easier!
+- **Recreation of osu! RNG model** - full recreation of osu!catch droplets and banana randomization!
+- **Dynamic AR** - control and change AR during gameplay using keyframes with easing! Exceed normal osu! AR values and torment people with maps on AR 12!
 - **Fake Hidden** - add hidden to the mix with adjustable HD strength!
 - **Scroll Velocity** - mania-style SV: rush, slow, or freeze the whole field!
 - **Player Skin Support** - with this enabled, skin elements are dynamically used! Rotation for square skins is fully supported!
@@ -26,13 +36,7 @@ Using storyboard and overlay layer, we can generate gameplay objects identical t
 - **Map Combo Colors** - an option to use map combo colors. (work in progress)
 - **Countdown** - overlay can and will cover osu! built-in countdown so we have our own implementation! (work in progress)
 - **Flashlight** - fake flashlight that follows the objects, not the catcher! (work in progress)
-
-## Showcase
-
-<!-- A couple of short clips side by side. Put the gifs in docs/ and swap the paths. -->
-| Dynamic AR | Scroll Velocity |
-|:---:|:---:|
-| ![](docs/ar.gif) | ![](docs/sv.gif) |
+- **Mod support** - make own mods for the engine and share them with others! Basic template and example mod included, seamless integration with profile file.
 
 ## Requirements
 
