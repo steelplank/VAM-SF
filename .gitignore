@@ -1,0 +1,12 @@
+# build output
+bin/
+obj/
+# editors (Visual Studio / Rider)
+.vs/
+.idea/
+*.user
+# os junk
+Thumbs.db
+.DS_Store
+# built release zips
+*.zip
