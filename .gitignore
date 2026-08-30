@@ -10,3 +10,4 @@ Thumbs.db
 .DS_Store
 # built release zips
 *.zip
+docs/TODO.md
