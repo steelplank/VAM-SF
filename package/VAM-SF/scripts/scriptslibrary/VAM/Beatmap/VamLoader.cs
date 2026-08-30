@@ -85,6 +85,15 @@ namespace StorybrewScripts.Vam
             double firstTime = result.Objects.Count > 0 ? result.Objects[0].Time : 0;
             result.BeatLengthAtStart = BeatLengthAt(osuMap.TimingPoints, firstTime);
 
+            // Every uninherited (red) timing point, sorted by time. The loop expander uses these to
+            // anchor beat-fraction keyframes on the exact osu! grid (offset + k * beatLength * fraction).
+            result.Timings = new List<VamTiming>();
+            if (osuMap.TimingPoints != null)
+                foreach (var tp in osuMap.TimingPoints)
+                    if (tp.Uninherited && tp.BeatLength > 0)
+                        result.Timings.Add(new VamTiming(tp.Time, tp.BeatLength));
+            result.Timings.Sort((a, b) => a.Time.CompareTo(b.Time));
+
             if (computeHyperDash)
                 ComputeHyperDash(result);
 

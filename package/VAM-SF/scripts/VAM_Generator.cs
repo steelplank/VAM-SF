@@ -29,6 +29,8 @@ namespace StorybrewScripts
         [Configurable] public bool RotateObjects = true;
         [Description("Enable fake hidden. Using default osu! values. You have to turn it on if you have hidden keyframes.")]
         [Configurable] public bool EnableHidden = true;
+        [Description("Enable fake mania Fade In (objects invisible at the top, fade in lower). Reads the profile 'fi' column. Composes with hidden - fi=5 + hd=5 leaves a visible window. Turn on if you have fi keyframes.")]
+        [Configurable] public bool EnableFadeIn = true;
         [Description("Enable the mania-like sv timeline from the profile file.")]
         [Configurable] public bool EnableScrollVelocity = true;
         [Description("Set constant AR if you're lazy. Also useful for testing.")]
@@ -109,6 +111,9 @@ namespace StorybrewScripts
                     if (System.IO.File.Exists(full))
                     {
                         profileText = System.IO.File.ReadAllText(full);
+                        System.Collections.Generic.List<string> loopErrors;
+                        profileText = VamLoopExpander.Expand(profileText, map, out loopErrors);   // expand loop..end blocks first
+                        foreach (var er in loopErrors) Log("VAM-profile loop " + er);
                         profile = new VamProfile(profileText, FakeApproachRate, EnableEasing, Easing);
                         foreach (var er in profile.Errors) Log("VAM-profile " + er);
                     }
@@ -136,6 +141,7 @@ namespace StorybrewScripts
                 ScrollVelocity = scrollVelocity,
                 EnableScrollVelocity = EnableScrollVelocity,
                 EnableHidden = EnableHidden,
+                EnableFadeIn = EnableFadeIn,
                 HiddenUseGameValues = HiddenUseGameValues,
                 HiddenFadeStart = HiddenFadeStart,
                 HiddenFadeEnd = HiddenFadeEnd,

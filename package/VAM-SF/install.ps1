@@ -46,7 +46,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$EffectFiles  = @('VAM_Generator.cs','VAM_Cover.cs','VAM_Flashlight.cs','VAM_Countdown.cs')
+$EffectFiles  = @('VAM_Generator.cs','VAM_Cover.cs','VAM_Countdown.cs')
 $LibFolders   = @('scriptslibrary/VAM')
 $ProfileFile  = 'VAM-profile.txt'
 $SpriteRel    = 'sb/vam'
@@ -314,7 +314,7 @@ function Do-InstallCore([bool]$isUpgrade){
     ($state | ConvertTo-Json) | Set-Content -LiteralPath $StateFile -Encoding UTF8
 
     Step "Done."
-    Info "In storybrew: add effects VAM_Generator, VAM_Cover, VAM_Flashlight, VAM_Countdown;"
+    Info "In storybrew: add effects VAM_Generator, VAM_Cover, VAM_Countdown;"
     Info "set the cover's OSB layers (Overlay -> Overlay, Background -> Background);"
     Info "edit VAM-profile.txt for AR/HD keyframes."
     Info "This VAM-SF folder can stay for future upgrades/uninstall, or be deleted."

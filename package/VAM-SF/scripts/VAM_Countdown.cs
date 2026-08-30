@@ -15,11 +15,16 @@ namespace StorybrewScripts
     ///     (BPM >= 180, so a fast map doesn't machine-gun the counts), then Half = x2, Double = /2;
     ///   - GO! lands on the beat BEFORE the first object; 3/2/1 precede it a beat apart;
     ///     Ready? runs from GO-6 to GO-3 beats; CountdownOffset shifts the whole thing earlier;
-    ///   - each count pops in with a 1.4 -> 1 scale over the last 0.2 beat and holds, matching the
-    ///     modern default skin (osu!'s "new layout").
+    ///   - each count pops in with a 1.4 -> 1 scale over the last 0.2 beat and holds (osu!'s
+    ///     "new layout", i.e. the modern default skin).
     ///
-    /// Put this effect's layer ABOVE the cover and the objects. Countdown assets are the default
-    /// osu! @2x set (ready/count3/count2/count1/go) -> keep Scale ~0.5 so @2x renders at 1x size.
+    /// Assets: uses the BUNDLED SD PNGs by default, rendered at Scale (1.0 = osu! size). This is
+    /// the reliable choice for a released map. UseSkinSprites can draw the player's skin countdown
+    /// instead, but note the storyboard limitation: osu! does NOT substitute a default when the
+    /// player's skin is missing an element, so a skin without a countdown shows NOTHING (there is no
+    /// fallback to the bundled art). Leave it off unless you know the target skin has a countdown.
+    ///
+    /// Put this effect's layer ABOVE the cover and the objects.
     /// </summary>
     public class VAM_Countdown : StoryboardObjectGenerator
     {
@@ -33,11 +38,11 @@ namespace StorybrewScripts
         [Configurable] public CountdownSpeed SpeedWhenForced = CountdownSpeed.Normal;
 
         [Group("Sprites")]
-        [Description("Use the player's SKIN countdown elements instead of the bundled PNGs. REQUIRES 'UseSkinSprites: 1' in the .osu [General]. Off = use the PNGs in SpriteFolder.")]
+        [Description("Draw the PLAYER'S skin countdown instead of the bundled art. WARNING: osu! storyboards do NOT fall back to a default when a skin lacks an element - if the player's skin has no countdown, NOTHING shows. The bundled art (leave this OFF) is the only reliable choice for a released map. Requires 'UseSkinSprites: 1' in the .osu (the installer sets it).")]
         [Configurable] public bool UseSkinSprites = false;
-        [Description("Folder holding the countdown PNGs (ready.png, count3.png, count2.png, count1.png, go.png). Ignored when UseSkinSprites is on.")]
+        [Description("Folder holding the bundled countdown PNGs (ready.png, count3.png, count2.png, count1.png, go.png). Ignored when UseSkinSprites is on.")]
         [Configurable] public string SpriteFolder = "sb/vam/";
-        [Description("Show the 'Ready?' element (GO-6 to GO-3 beats). Turn off if your skin/asset set has no ready.png.")]
+        [Description("Show the 'Ready?' element (GO-6 to GO-3 beats). Turn off if your asset set has no ready.png.")]
         [Configurable] public bool ShowReady = true;
         [Description("Show the 'GO!' element on the beat before the first object.")]
         [Configurable] public bool ShowGo = true;
@@ -47,8 +52,8 @@ namespace StorybrewScripts
         [Configurable] public double CenterX = 320;
         [Description("Screen y of the countdown centre (240 = middle of the 0..480 screen).")]
         [Configurable] public double CenterY = 240;
-        [Description("Base scale for the countdown sprites. The osu! default assets are @2x, so 0.5 renders them at osu!'s 1x size. osu!'s per-element pop (1.4 -> 1) multiplies this.")]
-        [Configurable] public double Scale = 0.5;
+        [Description("Scale for the countdown sprites. The bundled art is SD (1x), so 1.0 renders it at osu!'s size; skin countdowns are also 1x, so 1.0 fits them too. osu!'s per-element pop (1.4 -> 1) multiplies this.")]
+        [Configurable] public double Scale = 1.0;
 
         [Group("Timing")]
         [Description("Extra beats of lead added on top of the .osu CountdownOffset. Positive = the whole countdown starts (and ends) earlier.")]
@@ -103,7 +108,8 @@ namespace StorybrewScripts
             if (ShowGo) EmitGo(layer, go, interval);
 
             Log($"VAM_Countdown: {(Mode == CountdownEnable.ForceOn ? "forced" : "auto")} " +
-                $"(mode {map.CountdownMode}, x{speedMul}, beat {bl:0.#}ms), GO! at {go:0}ms, first object {t0:0}ms.");
+                $"(mode {map.CountdownMode}, x{speedMul}, beat {bl:0.#}ms, {(UseSkinSprites ? "skin" : "bundled")} art), " +
+                $"GO! at {go:0}ms, first object {t0:0}ms.");
         }
 
         // Ready?: fades in over GO-6..GO-5 beats, holds, then scales 1 -> 1.2 while fading out over
@@ -147,8 +153,9 @@ namespace StorybrewScripts
             s.Fade(go + 0.3 * bl, go + bl, 1, 0);
         }
 
-        // element -> sprite path. UseSkinSprites -> "element.png" (from the player's skin when
-        // UseSkinSprites:1 is set). Otherwise the PNG at SpriteFolder + element + ".png".
+        // element -> sprite path. UseSkinSprites -> "element.png" (osu! draws the player's skin
+        // element, or NOTHING if the skin lacks it - storyboards have no default fallback). Otherwise
+        // the bundled PNG at SpriteFolder + name.
         private string PathFor(string element)
         {
             if (string.IsNullOrEmpty(element)) return null;

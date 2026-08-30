@@ -30,8 +30,15 @@ namespace StorybrewScripts.Vam
 
         // opacity, peak normalized to 1.0 (emitter scales by each sprite's peak)
         public bool HdFade;
-        public double HdStart, HdEnd;   // fade window (ms)
+        public double HdStart, HdEnd;   // fade-OUT window (ms): peak -> peak*HdRemain
         public double HdRemain = 1.0;   // fraction of peak left at the catch
+
+        // fake mania Fade In: the object is invisible at spawn and fades IN over a band near the
+        // top of the fall (0 -> peak over [FiStart, FiEnd]), fully visible below it. Composes with
+        // HD: the emitter multiplies the fade-in and HD fade-out factors, so the two carve a visible
+        // reading window out of the middle of the fall.
+        public bool FadeIn;
+        public double FiStart, FiEnd;   // fade-in window (ms): 0 -> peak
 
         // ending
         public bool TriggerDriven;      // miss default + HitSound catch trigger

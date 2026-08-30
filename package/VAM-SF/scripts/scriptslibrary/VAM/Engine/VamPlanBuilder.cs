@@ -27,6 +27,9 @@ namespace StorybrewScripts.Vam
         public bool HiddenUseGameValues;
         public double HiddenFadeStart, HiddenFadeEnd;
 
+        // fade in (fake mania Fade In; profile 'fi' column only)
+        public bool EnableFadeIn;
+
         // catch / miss
         public bool EnableCatchMiss;
         public double CatchTriggerWindow;
@@ -47,6 +50,14 @@ namespace StorybrewScripts.Vam
         const double OsuHiddenOffsetMul = 0.6, OsuHiddenDurationMul = 0.16;
         const double OsuHdFadeStartFrac = 0.40, OsuHdFadeWidthFrac = OsuHiddenDurationMul;
         const double ExitY = 540.0;
+
+        // Fade In geometry (fraction of the fall). The reveal COMPLETES at FiEndFrac; the object is
+        // invisible above it and fades in over a band of FiWidthFrac. fi=5 (normal) reveals by 0.25 -
+        // comfortably above HD's 0.40 fade-out start, so fi=5 + hd=5 leaves a visible reading window.
+        // Higher fi reveals lower (later): FiEndFrac += (fi-5)*FiPerLevel. Mirrors mania's ~21% default
+        // top cover, tuned to sit above the default Hidden band.
+        const double FiEndFracAt5 = 0.25, FiWidthFrac = OsuHiddenDurationMul, FiPerLevel = 0.02;
+        const double FiMaxEndFrac = 0.90; // never hide the catch itself; always fully revealed before landing
 
         readonly Dictionary<VamObject, double> trigStart = new Dictionary<VamObject, double>();
         readonly Dictionary<VamObject, double> trigEnd = new Dictionary<VamObject, double>();
@@ -120,6 +131,7 @@ namespace StorybrewScripts.Vam
 
             if (RotateObjects) SetRotation(plan, obj, preempt);
             if (EnableHidden) SetHidden(plan, obj, spawnTime, catchTime, preempt);
+            if (EnableFadeIn) SetFadeIn(plan, obj, spawnTime, catchTime, preempt);
 
             // Scroll velocity is the last core transform: it reshapes the finished fall so every
             // object moves at the timeline's current multiplier, still landing on its beat. Runs on
@@ -196,6 +208,27 @@ namespace StorybrewScripts.Vam
             if (startFrac < 0.0) startFrac = 0.0;
             endFrac = startFrac + OsuHdFadeWidthFrac;
             if (endFrac > 1.0) endFrac = 1.0;
+        }
+
+        // Fade In (profile 'fi' column). The object is invisible at spawn and fades in over
+        // [FiStart, FiEnd], where FiEnd is a fraction of the fall set by the fi scale. Composes with
+        // Hidden in the emitter (the two factors multiply), so the reveal and the HD fade-out carve a
+        // visible band between them.
+        void SetFadeIn(VamPlan p, VamObject obj, double spawnTime, double catchTime, double preempt)
+        {
+            if (Profile == null || !Profile.HasFi) return;
+            double scale = Profile.FiScaleAt(catchTime);
+            if (scale <= 0.0) return;
+
+            double s = scale < 0 ? 0 : (scale > 10 ? 10 : scale);
+            double endFrac = FiEndFracAt5 + (s - 5.0) * FiPerLevel;
+            if (endFrac > FiMaxEndFrac) endFrac = FiMaxEndFrac;
+            double startFrac = endFrac - FiWidthFrac;
+            if (startFrac < 0.0) startFrac = 0.0;
+
+            p.FadeIn = true;
+            p.FiStart = spawnTime + preempt * startFrac;
+            p.FiEnd = spawnTime + preempt * endFrac;
         }
 
         // Only fruits raise storyboard HitSound triggers.

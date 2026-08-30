@@ -16,6 +16,9 @@ namespace StorybrewScripts.Vam
         public bool HasHd;
         public double Hd;        // 0..10 fade scale (0 off, 5 osu default, 10 hardest); fixed osu width, slides the line
 
+        public bool HasFi;
+        public double Fi;        // 0..10 fade-IN scale (0 off, 5 normal, 10 revealed latest); mania Fade In
+
         public VamEasing Easing;  // curve used for the transition INTO this keyframe
         public bool StepIn;      // arriving transition is instant (scope "after")
         public bool StepOut;     // leaving transition is instant  (scope "before")
@@ -47,16 +50,20 @@ namespace StorybrewScripts.Vam
     {
         private readonly List<VamProfileKey> _arKeys = new List<VamProfileKey>();
         private readonly List<VamProfileKey> _hdKeys = new List<VamProfileKey>();
+        private readonly List<VamProfileKey> _fiKeys = new List<VamProfileKey>();
         private readonly double _constantAr;
 
         // Bare "hd" / hd=true == old boolean Hidden ON == osu!'s default Hidden on the 0..10 scale.
         private const double OsuDefaultHdScale = 5.0;
+        // Bare "fi" / fi=true == normal mania Fade In on the 0..10 scale.
+        private const double DefaultFiScale = 5.0;
 
         private readonly List<string> _errors = new List<string>();
         public IReadOnlyList<string> Errors { get { return _errors; } }
 
         public bool HasAr { get { return _arKeys.Count > 0; } }
         public bool HasHd { get { return _hdKeys.Count > 0; } }
+        public bool HasFi { get { return _fiKeys.Count > 0; } }
 
         public VamProfile(string text, double constantAr, bool easingEnabled, VamEasing defaultEasing)
         {
@@ -68,6 +75,7 @@ namespace StorybrewScripts.Vam
 
             _arKeys.Sort((a, b) => a.Time.CompareTo(b.Time));
             _hdKeys.Sort((a, b) => a.Time.CompareTo(b.Time));
+            _fiKeys.Sort((a, b) => a.Time.CompareTo(b.Time));
         }
 
         private void Parse(string text, VamEasing fallbackEasing)
@@ -154,6 +162,29 @@ namespace StorybrewScripts.Vam
                         continue;
                     }
 
+                    if (low.StartsWith("fi"))
+                    {
+                        // bare "fi" / fi=true / fi=on  -> normal Fade In (scale 5)
+                        // fi=false / fi=off            -> off (scale 0)
+                        // fi=<0..10>                   -> reveal scale (0 off .. 10 revealed latest)
+                        double fi = DefaultFiScale;
+                        int eq = low.IndexOf('=');
+                        if (eq >= 0)
+                        {
+                            var v = low.Substring(eq + 1).Trim();
+                            if (v == "true" || v == "on" || v == "yes") fi = DefaultFiScale;
+                            else if (v == "false" || v == "off" || v == "no") fi = 0.0;
+                            else if (!double.TryParse(v, NumberStyles.Any, CultureInfo.InvariantCulture, out fi))
+                            {
+                                _errors.Add($"line {lineNo + 1}: bad fi value '{v}'");
+                                continue;
+                            }
+                        }
+                        key.HasFi = true;
+                        key.Fi = fi < 0 ? 0 : (fi > 10 ? 10 : fi);
+                        continue;
+                    }
+
                     switch (low)
                     {
                         case "both": key.StepIn = false; key.StepOut = false; break;
@@ -170,8 +201,9 @@ namespace StorybrewScripts.Vam
 
                 if (key.HasAr) _arKeys.Add(key);
                 if (key.HasHd) _hdKeys.Add(key);
-                if (!key.HasAr && !key.HasHd)
-                    _errors.Add($"line {lineNo + 1}: line sets neither AR nor hd");
+                if (key.HasFi) _fiKeys.Add(key);
+                if (!key.HasAr && !key.HasHd && !key.HasFi)
+                    _errors.Add($"line {lineNo + 1}: line sets neither AR, hd nor fi");
             }
         }
 
@@ -204,6 +236,13 @@ namespace StorybrewScripts.Vam
         public double HdScaleAt(double time)
         {
             return Sample(_hdKeys, time, k => k.Hd, 0.0, holdBeforeFirst: false);
+        }
+
+        // Fade-IN scale (0..10) at a time. 0 (off) before the first fi keyframe. Interpolated
+        // between fi keyframes like AR/HD (slides the reveal band smoothly).
+        public double FiScaleAt(double time)
+        {
+            return Sample(_fiKeys, time, k => k.Fi, 0.0, holdBeforeFirst: false);
         }
 
         // Piecewise sampler shared by AR and HD. Each segment eases with the destination

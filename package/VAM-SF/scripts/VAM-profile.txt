@@ -14,10 +14,17 @@
 #     60000:9:sinein     ease in with a named curve
 #     60000:9:hd=5       add fake Hidden   (0 off | 5 normal | 10 hardest)
 #     95000:-:hd=0       Hidden only, leave AR unchanged
+#     60000:9:fi=5       add fake Fade In  (invisible up top, fades in lower)
+#     60000:9:hd=5:fi=5  Hidden + Fade In on one line -> a middle reading window
 #
 #     [sv]               start the Scroll Velocity section
 #     60000:6            x6 fall speed   (1 normal | <1 slow | 0 freeze)
 #     61000:1            always end back at x1
+#
+#     loop 60000 1/2 -> 64000   repeat a pattern every 1/2 beat until 64000ms
+#     0.5                       values cycle, one per beat-fraction...
+#     1                         ...here: 0.5, 1, 0.5, 1, ...
+#     end                       close the block
 #
 # --- AR ----------------------------------------------------------------------
 #
@@ -29,6 +36,7 @@
 #     after     snap INTO this keyframe    (a sudden change)
 #     before    snap OUT of this keyframe
 #     hd=N      fake Hidden (see below)
+#     fi=N      fake Fade In (see below)
 #
 # --- HIDDEN ------------------------------------------------------------------
 #
@@ -44,6 +52,25 @@
 #
 #     Decimals ok (hd=6.5). Ramps with AR's easing/scope.
 #
+# --- FADE IN -----------------------------------------------------------------
+#
+#     fi=0..10   (needs EnableFadeIn, on by default).  osu!mania's Fade In: the
+#     object is INVISIBLE at the top of the fall and fades IN lower down - the
+#     mirror of Hidden.  The number sets how far it stays hidden:
+#
+#     fi=0       off, appears normally at the top
+#     fi=false   ^
+#     fi=1-4     revealed higher (easier)
+#     fi=5       normal Fade In (same as a bare "fi"); revealed by ~1/4 down
+#     fi=6-10    revealed lower (harder)
+#
+#     Works WITH Hidden: Fade In hides the top, Hidden hides the bottom, so the
+#     two leave a visible band in the middle.  At the defaults (fi=5 + hd=5) you
+#     get a clean window - visible from ~1/4 to ~2/5 of the fall - and even fi=10
+#     still clears hd=5's fade, so the window never fully closes at sane settings.
+#     Decimals ok. Ramps with AR's easing/scope. The object is always fully shown
+#     before it lands (Fade In never hides the catch itself).
+#
 # --- SCROLL VELOCITY ---------------------------------------------------------
 #
 #     Its own [sv] header, then  time:multiplier.
@@ -56,6 +83,36 @@
 #     It is x1 before the first line and HOLDS the last, so END WITH :1.
 #     Hidden is left alone while SV is running.
 #
+# --- LOOP  (repeat a pattern without typing every keyframe) -------------------
+#
+#     loop <start> <beat-fraction> -> <end>
+#     <value>
+#     <value>
+#     ...
+#     end
+#
+#     Expands to plain time:value lines before anything else is read, so it works
+#     in [sv], in the AR/HD block, and in any [mod:*] block - put it under the
+#     right header.
+#
+#     start           ms of the FIRST keyframe (snapped onto osu!'s beat grid).
+#     beat-fraction   spacing as a fraction of a beat: 1/2, 3/4, 2/3, 5/7, or a
+#                     plain decimal (0.5). Uses the map's red-line BPM at 'start',
+#                     so it lands exactly where the editor would snap it.
+#     end             ms; keyframes run up to AND INCLUDING this time (an END
+#                     TIME, not a count). The '->' is optional.
+#     values          the part AFTER 'time:' - "0.5", "1", "9:sine", "-:hd=3".
+#                     They cycle in order, one per keyframe (2 values, 6 beats =>
+#                     A B A B A B).
+#
+#     Only WHOLE cycles are emitted, so the loop ALWAYS ends on the last value: a
+#     partial cycle that would fit before 'end' is dropped (A,B over 5 slots gives
+#     A B A B, not A B A B A). Pick 'end' with a little room; you don't have to hit
+#     it exactly.
+#
+#     Times match osu!'s editor rounding exactly, so a loop reproduces hand-placed
+#     notes tick for tick. A red line inside the span does not re-anchor it.
+#
 # --- EXAMPLES  (copy under WRITE BELOW, then delete the leading '#') ----------
 #
 #     ~smooth AR ride~
@@ -65,6 +122,10 @@
 #
 #     ~sudden AR spike + Hidden on, in one line~
 #     120000:10.5:after:hd=5
+#
+#     ~Fade In + Hidden together: a middle reading window from 60s on~
+#     60000:9:hd=5:fi=5
+#     90000:9:hd=5:fi=8      # window tightens (revealed lower) toward the drop
 #
 #     ~Hidden fades in 60->65s, out 90->95s, AR steady~
 #     60000:9:hd=0
@@ -78,5 +139,13 @@
 #     60500:0
 #     60900:0.15
 #     61200:1
+#
+#     ~SV: an alternating half-beat wobble from 60s to 64s, no typing 16 lines~
+#     [sv]
+#     loop 60000 1/2 -> 64000
+#     2
+#     0.5
+#     end
+#     64000:1
 #
 # ============================  WRITE BELOW  ==================================
