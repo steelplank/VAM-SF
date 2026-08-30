@@ -2,25 +2,24 @@ using StorybrewCommon.Scripting;
 using StorybrewCommon.Storyboarding;
 using StorybrewScripts.Vam;
 using System;
-using System.Collections.Generic;
 
 namespace StorybrewScripts
 {
     /// <summary>
-    /// Redraws osu!'s pre-map countdown (3, 2, 1, GO!) in the storyboard, because the
-    /// CatchPlayfieldCover hides osu!'s own countdown behind the black cover.
+    /// Redraws osu!'s pre-map countdown (Ready?, 3, 2, 1, GO!) in the storyboard, because the
+    /// cover hides osu!'s own countdown behind it.
     ///
-    /// It reads the [General] Countdown setting from the same .osu the rest of the framework loads:
-    ///   Countdown = 0 None / 1 Normal / 2 Half (slower) / 3 Double (faster), plus CountdownOffset.
-    /// By default it mirrors the map (Auto): shows the countdown only when the map has one, at the
-    /// map's speed. Set Mode = ForceOff to suppress it, or ForceOn to always show one (handy for
-    /// testing, since neither osu!'s countdown nor storyboard timing previews reliably in the editor).
+    /// Timing + animation mirror osu! stable's Player.InitializeCountdown():
+    ///   - reads [General] Countdown (0 None / 1 Normal / 2 Half / 3 Double) + CountdownOffset;
+    ///   - beat length is the timing point at the first object, DOUBLED when it is <= 333ms
+    ///     (BPM >= 180, so a fast map doesn't machine-gun the counts), then Half = x2, Double = /2;
+    ///   - GO! lands on the beat BEFORE the first object; 3/2/1 precede it a beat apart;
+    ///     Ready? runs from GO-6 to GO-3 beats; CountdownOffset shifts the whole thing earlier;
+    ///   - each count pops in with a 1.4 -> 1 scale over the last 0.2 beat and holds, matching the
+    ///     modern default skin (osu!'s "new layout").
     ///
-    /// The counts are beat-synced to the timing point in force at the first object. GO! lands on the
-    /// beat BEFORE the first object (osu! plays "GO!" a beat before the first note), and 3/2/1 precede
-    /// it one beat apart. There is no "Ready?" element — osu!lazer never implemented this countdown
-    /// (ppy/osu #4628, closed "not planned") and stable is closed-source, so its exact timing/scale
-    /// are unknown. Put this effect's layer ABOVE the cover and the objects.
+    /// Put this effect's layer ABOVE the cover and the objects. Countdown assets are the default
+    /// osu! @2x set (ready/count3/count2/count1/go) -> keep Scale ~0.5 so @2x renders at 1x size.
     /// </summary>
     public class VAM_Countdown : StoryboardObjectGenerator
     {
@@ -28,16 +27,18 @@ namespace StorybrewScripts
         public enum CountdownSpeed { Normal, Half, Double }
 
         [Group("Enable")]
-        [Description("Auto = show the countdown only when the .osu [General] Countdown is not 0, using its speed. ForceOn = always show it (uses SpeedWhenForced). ForceOff = never show it (the manual off switch).")]
+        [Description("Auto = show the countdown only when the .osu [General] Countdown is not 0, using its speed. ForceOn = always show it (uses SpeedWhenForced). ForceOff = never show it.")]
         [Configurable] public CountdownEnable Mode = CountdownEnable.Auto;
         [Description("Speed used ONLY when Mode = ForceOn (in Auto the speed comes from the .osu). Normal = one count per beat, Half = one per two beats, Double = two counts per beat.")]
         [Configurable] public CountdownSpeed SpeedWhenForced = CountdownSpeed.Normal;
 
         [Group("Sprites")]
-        [Description("Use the player's SKIN countdown elements (count3/count2/count1/go) instead of the bundled PNGs. REQUIRES 'UseSkinSprites: 1' in the .osu [General] (the installer sets it). Off = use the bundled PNGs in SpriteFolder.")]
+        [Description("Use the player's SKIN countdown elements instead of the bundled PNGs. REQUIRES 'UseSkinSprites: 1' in the .osu [General]. Off = use the PNGs in SpriteFolder.")]
         [Configurable] public bool UseSkinSprites = false;
-        [Description("Folder holding the bundled countdown PNGs (count3.png, count2.png, count1.png, go.png). Ignored when UseSkinSprites is on.")]
+        [Description("Folder holding the countdown PNGs (ready.png, count3.png, count2.png, count1.png, go.png). Ignored when UseSkinSprites is on.")]
         [Configurable] public string SpriteFolder = "sb/vam/";
+        [Description("Show the 'Ready?' element (GO-6 to GO-3 beats). Turn off if your skin/asset set has no ready.png.")]
+        [Configurable] public bool ShowReady = true;
         [Description("Show the 'GO!' element on the beat before the first object.")]
         [Configurable] public bool ShowGo = true;
 
@@ -46,15 +47,13 @@ namespace StorybrewScripts
         [Configurable] public double CenterX = 320;
         [Description("Screen y of the countdown centre (240 = middle of the 0..480 screen).")]
         [Configurable] public double CenterY = 240;
-        [Description("Uniform scale for the countdown sprites. (osu! never open-sourced this countdown, so there is no official value to lock to — 0.5 matches the bundled art; adjust if you swap in skin sprites.)")]
+        [Description("Base scale for the countdown sprites. The osu! default assets are @2x, so 0.5 renders them at osu!'s 1x size. osu!'s per-element pop (1.4 -> 1) multiplies this.")]
         [Configurable] public double Scale = 0.5;
-        [Description("Fade in/out time (ms) applied to each element as it appears / gives way to the next.")]
-        [Configurable] public double FadeTime = 80;
 
         [Group("Timing")]
-        [Description("Extra beats of lead added on top of the .osu CountdownOffset. Positive = the whole countdown starts (and ends) earlier. Use to nudge it if it feels off.")]
+        [Description("Extra beats of lead added on top of the .osu CountdownOffset. Positive = the whole countdown starts (and ends) earlier.")]
         [Configurable] public int ExtraOffsetBeats = 0;
-        [Description("Beat length override in ms per beat (60000/BPM). <= 0 = use the map's timing at the first object.")]
+        [Description("Beat length override in ms per beat (60000/BPM). <= 0 = use the map's timing at the first object. The <=333ms fast-BPM doubling is applied AFTER this.")]
         [Configurable] public double BeatLengthOverride = 0;
 
         [Group("Layer")]
@@ -64,140 +63,110 @@ namespace StorybrewScripts
         public override void Generate()
         {
             var osuPath = VamOsuPathResolver.Resolve(MapsetPath, Beatmap.Name, Beatmap.Id);
-            if (string.IsNullOrEmpty(osuPath))
-            {
-                Log("VAM_Countdown: could not locate a .osu file in " + MapsetPath);
-                return;
-            }
+            if (string.IsNullOrEmpty(osuPath)) { Log("VAM_Countdown: no .osu found in " + MapsetPath); return; }
 
             VamBeatmap map;
-            try
-            {
-                map = VamLoader.Load(osuPath, computeHyperDash: false);
-            }
-            catch (Exception e)
-            {
-                Log("VAM_Countdown: failed to load/convert beatmap: " + e.Message);
-                return;
-            }
+            try { map = VamLoader.Load(osuPath, computeHyperDash: false); }
+            catch (Exception e) { Log("VAM_Countdown: load/convert failed: " + e.Message); return; }
 
-            if (map.Objects.Count == 0)
-            {
-                Log("VAM_Countdown: no objects to lead into.");
-                return;
-            }
+            if (map.Objects.Count == 0) { Log("VAM_Countdown: no objects to lead into."); return; }
 
-            // Decide whether to draw, and at what speed.
-            if (Mode == CountdownEnable.ForceOff)
-            {
-                Log("VAM_Countdown: Mode = ForceOff, nothing drawn.");
-                return;
-            }
+            if (Mode == CountdownEnable.ForceOff) { Log("VAM_Countdown: ForceOff, nothing drawn."); return; }
             if (Mode == CountdownEnable.Auto && map.CountdownMode == 0)
-            {
-                Log("VAM_Countdown: .osu Countdown is None; nothing drawn (set Mode = ForceOn to override).");
-                return;
-            }
+            { Log("VAM_Countdown: .osu Countdown is None (set Mode = ForceOn to override)."); return; }
 
-            double speedMul = Mode == CountdownEnable.ForceOn
-                ? SpeedMul(SpeedWhenForced)
-                : SpeedMulFromOsu(map.CountdownMode);
+            // Beat length: map timing at the first object, DOUBLED if <=333ms (osu! fast-BPM rule),
+            // then the speed multiplier from the mode. (osu!: Half x2, Double /2, Normal x1.)
+            double bl = BeatLengthOverride > 0 ? BeatLengthOverride : map.BeatLengthAtStart;
+            if (bl <= 0) bl = 500.0;
+            if (bl <= 333.0) bl *= 2.0;                          // osu!: "if the bpm is too fast, double it"
+            double speedMul = Mode == CountdownEnable.ForceOn ? SpeedMul(SpeedWhenForced) : SpeedMul(map.CountdownMode);
+            double interval = bl * speedMul;
+            if (interval <= 0) return;
 
-            double beat = BeatLengthOverride > 0 ? BeatLengthOverride : map.BeatLengthAtStart;
-            if (beat <= 0) beat = 500.0;
-            double interval = beat * speedMul;
-
+            // GO! lands one beat before the first object; CountdownOffset (+ ExtraOffsetBeats) shifts
+            // the whole sequence earlier. (osu! aligns GO! to the beat grid; assuming the first object
+            // sits on a beat - true for essentially every map - anchoring on it gives the same result.)
             double t0 = map.Objects[0].Time;
-            int offsetBeats = map.CountdownOffset + ExtraOffsetBeats;
-            // The whole sequence is shifted earlier by offsetBeats.
-            double anchor = t0 - offsetBeats * interval;
+            double go = t0 - (1 + map.CountdownOffset + ExtraOffsetBeats) * interval;
 
-            // Build the sequence (each element shows until the next; last holds for one interval).
-            // GO! lands ONE beat BEFORE the first object (osu! plays "GO!" on the beat before the
-            // first note, not on it), and the 3/2/1 counts precede it a beat apart. There is no
-            // "Ready?" element: osu!lazer never implemented this countdown (ppy/osu #4628, closed
-            // "not planned") and stable is closed-source, so its exact "Ready" timing isn't known.
-            var seq = new List<KeyValuePair<string, double>>();
-            seq.Add(new KeyValuePair<string, double>("count3", anchor - 4 * interval));
-            seq.Add(new KeyValuePair<string, double>("count2", anchor - 3 * interval));
-            seq.Add(new KeyValuePair<string, double>("count1", anchor - 2 * interval));
-            if (ShowGo) seq.Add(new KeyValuePair<string, double>("go", anchor - 1 * interval));
+            // Enough lead-in for the sequence? osu! only shows it when GO-4 beats is still after 0.
+            if (Mode == CountdownEnable.Auto && go - 4 * interval <= 0)
+            { Log("VAM_Countdown: not enough lead-in before the first object; skipped (osu! does the same)."); return; }
 
             var layer = GetLayer(LayerName);
 
-            int shown = 0;
-            for (int i = 0; i < seq.Count; i++)
-            {
-                double show = seq[i].Value;
-                double until = (i + 1 < seq.Count) ? seq[i + 1].Value : show + interval;
-
-                if (until <= 0) continue;      // entirely before the audio starts
-                if (show < 0) show = 0;         // clamp the start into the audio
-                if (until <= show) continue;
-
-                ShowElement(layer, seq[i].Key, show, until);
-                shown++;
-            }
+            if (ShowReady) EmitReady(layer, go, interval);
+            EmitCount(layer, "count3", go - 3 * interval, interval);
+            EmitCount(layer, "count2", go - 2 * interval, interval);
+            EmitCount(layer, "count1", go - 1 * interval, interval);
+            if (ShowGo) EmitGo(layer, go, interval);
 
             Log($"VAM_Countdown: {(Mode == CountdownEnable.ForceOn ? "forced" : "auto")} " +
-                $"(mode {map.CountdownMode}, speed x{speedMul}, beat {beat:0.#}ms), " +
-                $"{shown} element(s) leading into t0={t0}.");
+                $"(mode {map.CountdownMode}, x{speedMul}, beat {bl:0.#}ms), GO! at {go:0}ms, first object {t0:0}ms.");
         }
 
-        // Draws one countdown element as a static, centred sprite that fades in, holds, and fades out.
-        private void ShowElement(StoryboardLayer layer, string element, double show, double until)
+        // Ready?: fades in over GO-6..GO-5 beats, holds, then scales 1 -> 1.2 while fading out over
+        // GO-4..GO-3 beats (osu! new layout).
+        private void EmitReady(StoryboardLayer layer, double go, double bl)
+        {
+            var path = PathFor("ready");
+            if (string.IsNullOrEmpty(path)) return;
+            var s = layer.CreateSprite(path, OsbOrigin.Centre);
+            s.Move(go - 6 * bl, CenterX, CenterY);
+            s.Scale(go - 6 * bl, Scale);
+            s.Fade(go - 6 * bl, go - 5 * bl, 0, 1);
+            s.Scale(OsbEasing.None, go - 4 * bl, go - 3 * bl, Scale, 1.2 * Scale);
+            s.Fade(go - 4 * bl, go - 3 * bl, 1, 0);
+        }
+
+        // 3 / 2 / 1: pops in with a 1.4 -> 1 scale over the last 0.2 beat, holds ~0.8 beat, fades out
+        // over the final 0.2 beat (ending exactly as the next count appears). 'at' is when it lands.
+        private void EmitCount(StoryboardLayer layer, string element, double at, double bl)
         {
             var path = PathFor(element);
             if (string.IsNullOrEmpty(path)) return;
-
             var s = layer.CreateSprite(path, OsbOrigin.Centre);
-            // A degenerate move keeps the sprite at a constant position for its whole life.
-            s.Move(OsbEasing.None, show, until, CenterX, CenterY, CenterX, CenterY);
-            s.Scale(show, Scale);
-
-            double fi = FadeTime;
-            double maxFade = (until - show) / 2.0;
-            if (fi > maxFade) fi = maxFade;
-            if (fi < 0) fi = 0;
-
-            s.Fade(show, show + fi, 0, 1);
-            s.Fade(until - fi, until, 1, 0);
+            s.Move(at - 0.2 * bl, CenterX, CenterY);
+            s.Fade(at - 0.2 * bl, at, 0, 1);
+            s.Scale(OsbEasing.None, at - 0.2 * bl, at, 1.4 * Scale, Scale);
+            s.Fade(at + 0.8 * bl, at + bl, 1, 0);
         }
 
-        // Resolves a countdown element name to a sprite path. UseSkinSprites -> "element.png"
-        // (resolved from the player's skin when UseSkinSprites:1 is set in the .osu). Otherwise the
-        // bundled PNG at SpriteFolder + element + ".png".
+        // GO!: scales 1.4 -> 1 over GO-0.6..GO+0.2 beats, fades in over the last 0.2 beat, holds, then
+        // fades out over GO+0.3..GO+1 beats (osu! new layout).
+        private void EmitGo(StoryboardLayer layer, double go, double bl)
+        {
+            var path = PathFor("go");
+            if (string.IsNullOrEmpty(path)) return;
+            var s = layer.CreateSprite(path, OsbOrigin.Centre);
+            s.Move(go - 0.6 * bl, CenterX, CenterY);
+            s.Fade(go - 0.6 * bl, 0);                          // cull until the fade-in (scale starts earlier)
+            s.Scale(OsbEasing.None, go - 0.6 * bl, go + 0.2 * bl, 1.4 * Scale, Scale);
+            s.Fade(go - 0.2 * bl, go, 0, 1);
+            s.Fade(go + 0.3 * bl, go + bl, 1, 0);
+        }
+
+        // element -> sprite path. UseSkinSprites -> "element.png" (from the player's skin when
+        // UseSkinSprites:1 is set). Otherwise the PNG at SpriteFolder + element + ".png".
         private string PathFor(string element)
         {
             if (string.IsNullOrEmpty(element)) return null;
             if (UseSkinSprites) return element + ".png";
-
             var folder = SpriteFolder ?? "";
             if (folder.Length > 0 && !folder.EndsWith("/")) folder += "/";
             return folder + element + ".png";
         }
 
-        // osu! Countdown speed as an interval multiplier: Normal = 1 beat, Half = 2 beats
-        // (slower), Double = 0.5 beat (faster).
+        // osu! Countdown speed -> interval multiplier: Normal = 1 beat, Half = 2 beats (slower),
+        // Double = 0.5 beat (faster). Accepts the enum or the raw .osu value (1/2/3).
         private static double SpeedMul(CountdownSpeed s)
         {
-            switch (s)
-            {
-                case CountdownSpeed.Half: return 2.0;
-                case CountdownSpeed.Double: return 0.5;
-                default: return 1.0;
-            }
+            switch (s) { case CountdownSpeed.Half: return 2.0; case CountdownSpeed.Double: return 0.5; default: return 1.0; }
         }
-
-        // Maps the .osu Countdown value (1 Normal / 2 Half / 3 Double) to an interval multiplier.
-        private static double SpeedMulFromOsu(int countdownMode)
+        private static double SpeedMul(int countdownMode)
         {
-            switch (countdownMode)
-            {
-                case 2: return 2.0;   // Half
-                case 3: return 0.5;   // Double
-                default: return 1.0;  // Normal (and any unexpected value)
-            }
+            switch (countdownMode) { case 2: return 2.0; case 3: return 0.5; default: return 1.0; }
         }
     }
 }
