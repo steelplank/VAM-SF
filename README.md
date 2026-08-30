@@ -30,12 +30,14 @@ Using storyboard and overlay layer, we can generate gameplay objects identical t
 - **Recreation of osu! RNG model** - full recreation of osu!catch droplets and banana randomization!
 - **Dynamic AR** - control and change AR during gameplay using keyframes with easing! Exceed normal osu! AR values and torment people with maps on AR 12!
 - **Fake Hidden** - add hidden to the mix with adjustable HD strength!
+- **Fade-In** - why bother with lane cover when you can have fade-in! Mix FI with HD together and make fake mania-like FL!
 - **Scroll Velocity** - mania-style SV: rush, slow, or freeze the whole field!
 - **Player Skin Support** - with this enabled, skin elements are dynamically used! Rotation for square skins is fully supported!
 - **Miss Simulator** - fake "osu-like" simulation of a miss where the object will fall below the platter. (fruits-only feature)
+- **Countdown** - overlay can and will cover osu! built-in countdown so we have our own implementation!
+- **Cover with background support** - you should always use cover together with the generator but nobody said it has to be pure black
 - **Map Combo Colors** - an option to use map combo colors. (work in progress)
-- **Countdown** - overlay can and will cover osu! built-in countdown so we have our own implementation! (work in progress)
-- **Flashlight** - fake flashlight that follows the objects, not the catcher! (work in progress)
+- **Custom interpreter** - program keyframes and all efects in one file thanks to a robust interpreter. Now including loop statements!
 - **Mod support** - make own mods for the engine and share them with others! Basic template and example mod included, seamless integration with profile file.
 
 ## Requirements
