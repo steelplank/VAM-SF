@@ -11,9 +11,8 @@ using CvColor = CtbLoader.Common.Color;
 
 namespace StorybrewScripts.Vam
 {
-    // Loads a .osu file, runs it through CtbLoader (osu! -> osu!catch), and flattens
-    // the result into the framework's own List<VamObject>, complete with combo colours
-    // and hyperdash flags. This is the single bridge between CtbLoader and the effects.
+    // Loads a .osu, runs it through CtbLoader (osu! -> osu!catch) and flattens the result into the
+    // framework's List<VamObject> with combo colours and hyperdash flags - the one bridge to effects.
     public static class VamLoader
     {
         // osu! stable default combo colours (used only when the map specifies none).
@@ -27,9 +26,8 @@ namespace StorybrewScripts.Vam
 
         public static VamBeatmap Load(string osuPath, bool computeHyperDash = true)
         {
-            // CtbLoader parses ".osu" numbers with the current culture in several places.
-            // Force invariant so decimal points parse correctly regardless of the OS locale
-            // (e.g. Polish/German comma-decimal machines), then restore.
+            // CtbLoader parses .osu numbers with the current culture; force invariant so decimals
+            // parse regardless of OS locale (e.g. comma-decimal machines), then restore.
             var previousCulture = Thread.CurrentThread.CurrentCulture;
             Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
             try
@@ -60,13 +58,10 @@ namespace StorybrewScripts.Vam
                 CountdownOffset = osuMap.CountdownOffset
             };
 
-            // Build the combo-colour palette.
             var palette = BuildPalette(catchMap.ComboColors);
 
-            // Combo colour per top-level object, derived from the ORIGINAL osu! hit objects
-            // (the converter drops the new-combo flag, so we recompute it here). The converter
-            // emits exactly one top-level catch object per source hit object, in order, so we
-            // can walk both lists together.
+            // Combo colour per top-level object, recomputed from the ORIGINAL osu! hit objects (the
+            // converter drops the new-combo flag but emits one catch object per source hit, in order).
             var comboColors = ComputeComboColors(osuMap.HitObjects, palette);
 
             for (int i = 0; i < catchMap.HitObjects.Count; i++)
@@ -76,7 +71,6 @@ namespace StorybrewScripts.Vam
                 Flatten(hit, color, i, result.Objects);
             }
 
-            // Time-order everything and index it.
             result.Objects = result.Objects.OrderBy(o => o.Time).ToList();
             for (int i = 0; i < result.Objects.Count; i++)
                 result.Objects[i].Index = i;
@@ -137,12 +131,9 @@ namespace StorybrewScripts.Vam
 
         private static List<byte[]> ComputeComboColors(List<OsuHitObject> hitObjects, List<byte[]> palette)
         {
-            // Faithful port of osu!'s IHasComboInformation.UpdateComboInformation:
-            //   int index = last?.ComboIndexWithOffsets ?? 0;
-            //   if (NewCombo || last == null) index += ComboOffset + 1;
-            // The colour is palette[index % count]. Crucially the FIRST object is treated as a
-            // new combo and increments to 1, so the first combo uses palette[1] (Combo2), NOT
-            // palette[0]. (The old code started at 0, shifting every object one colour off.)
+            // Faithful port of osu!'s IHasComboInformation.UpdateComboInformation. The FIRST object
+            // is treated as a new combo and increments to 1, so the first combo uses palette[1]
+            // (Combo2), NOT palette[0]. (The old code started at 0, shifting every object one colour off.)
             var colors = new List<byte[]>(hitObjects.Count);
             int index = 0;
             bool first = true;
@@ -210,9 +201,8 @@ namespace StorybrewScripts.Vam
             };
         }
 
-        // Faithful port of osu!'s CatchBeatmapProcessor.initialiseHyperDash.
-        // Bananas do not take part in hyperdash. Marks the object BEFORE an
-        // impossible jump as a hyperdash (that's the one osu! tints).
+        // Faithful port of osu!'s CatchBeatmapProcessor.initialiseHyperDash. Bananas don't take part;
+        // marks the object BEFORE an impossible jump as the hyperdash (that's the one osu! tints).
         private static void ComputeHyperDash(VamBeatmap map)
         {
             const double catcherSpeed = 1.0; // osu! Catcher.BASE_DASH_SPEED

@@ -11,9 +11,8 @@ namespace StorybrewScripts.Vam
         Banana        // a banana from a banana shower (spinner)
     }
 
-    // A single, flattened, renderable catch object.
-    // This is the framework's own model: it decouples every effect from the
-    // CtbLoader tree (juice streams / banana showers are already expanded here).
+    // A single, flattened, renderable catch object - the framework's own model, decoupled from the
+    // CtbLoader tree (juice streams / banana showers already expanded here).
     public class VamObject
     {
         public VamObjectType Type;
@@ -84,8 +83,5 @@ namespace StorybrewScripts.Vam
             if (!found) best = new VamTiming(0, BeatLengthAtStart > 0 ? BeatLengthAtStart : 500.0);
             return best;
         }
-
-        // Convenience: catchable objects only (everything except... nothing is excluded here,
-        // all of fruit/droplet/tiny/banana are catchable, but bananas don't take part in hyperdash).
     }
 }

@@ -12,7 +12,7 @@
 
 VAM renders a pixel-accurate storyboard copy of an osu!catch map with a fake dynamic Approach Rate, fake Hidden, mania-style Scroll Velocity, and more!
 
-![status](https://img.shields.io/badge/status-alpha%20v0.21-orange)
+![status](https://img.shields.io/badge/status-alpha%20v0.30-orange)
 
 | Dynamic AR | Scroll Velocity |
 |:---:|:---:|
@@ -64,7 +64,7 @@ Using storyboard and overlay layer, we can generate gameplay objects identical t
 <details>
 <summary>Full setup &amp; troubleshooting</summary>
 
-[Soon]
+See the full guide: **[INSTALL.md](package/VAM-SF/INSTALL.md)** - scripted and manual install, storybrew setup, managing an install, and publishing.
 
 </details>
 
@@ -72,14 +72,27 @@ Using storyboard and overlay layer, we can generate gameplay objects identical t
 
 Program AR, Hidden, and Scroll Velocity over time in **`VAM-profile.txt`** - the file documents its own syntax.
 
-## Status
-
-Early alpha (**v0.21**) with not much testing besides my own machines. Flashlight and countdown are still being worked on.
-
 ## Credits
 
 - Phob - provided almost entire beatmap converter <3
 
 ## License
 
-Soon
+VAM:SF is released under the **[GNU General Public License v3.0](LICENSE)**.
+
+```
+VAM:SF - Variable AR Modification: Storybrew Framework
+Copyright (C) 2026 Malai
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+```
+
+The bundled beatmap converter and the recreated osu! default sprites remain the property of their respective authors.

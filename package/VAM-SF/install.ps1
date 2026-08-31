@@ -1,5 +1,5 @@
 <#
-  VAM-SF - Variable AR Modification: Storybrew Framework (osu!catch) - Installer / Manager (v2.1)
+  VAM-SF - Variable AR Modification: Storybrew Framework (osu!catch) - Installer / Manager (v0.30)
 
   Keep this whole VAM-SF folder INSIDE your storybrew project folder. It is a PERSISTENT
   toolbox: after installing, the folder stays so you can upgrade or uninstall later. It holds
@@ -100,7 +100,7 @@ function Show-Banner {
     foreach ($l in $art){ Write-Host $l -ForegroundColor Cyan }
     Write-Host ""
     Write-Host " Variable AR Modification: Storybrew Framework" -ForegroundColor DarkCyan
-    Write-Host " installer / manager   v0.21" -ForegroundColor DarkGray
+    Write-Host " installer / manager   v0.30" -ForegroundColor DarkGray
     Write-Host " -------------------------------------------------" -ForegroundColor DarkCyan
 }
 
@@ -362,7 +362,7 @@ function Do-InstallCore([bool]$isUpgrade){
 
     # state file
     $state = @{
-        version   = '0.21'
+        version   = '0.30'
         project   = $ProjectPath
         mapset    = $MapsetPath
         osu       = @($osuFiles | ForEach-Object { $_.Name })

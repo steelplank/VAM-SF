@@ -4,10 +4,9 @@ using System.Globalization;
 
 namespace StorybrewScripts.Vam
 {
-    // Easing curves used when interpolating AR between keyframes.
-    // These are independent of osb sprite easing (fruits always fall linearly).
-    // NOTE: values are APPENDED (never reordered) so existing saved effect configs — which store
-    // the Easing dropdown as an integer index — keep pointing at the same curve.
+    // Easing curves for interpolating AR between keyframes, independent of osb sprite easing (fruits
+    // fall linearly). Values are APPENDED, never reordered - saved configs store the dropdown as an
+    // integer index, so reordering would repoint them at the wrong curve.
     public enum VamEasing
     {
         Linear,
@@ -29,15 +28,10 @@ namespace StorybrewScripts.Vam
         public double Ar;
     }
 
-    // Dynamic approach-rate profile.
-    //
-    // Configured from a simple text string so it can live in a storybrew [Configurable]
-    // field. Format: a comma/semicolon/newline separated list of "time:ar" pairs, e.g.
-    //     0:8, 45000:10, 90000:9.5
-    // Times are in milliseconds. Between keyframes the AR is interpolated (optionally eased);
-    // before the first / after the last keyframe the nearest value is held.
-    //
-    // If the string is empty, the profile is a single constant AR (constantAr).
+    // Dynamic approach-rate profile from a text string (storybrew [Configurable]-friendly): a
+    // comma/semicolon/newline list of "time:ar" pairs, e.g. 0:8, 45000:10, 90000:9.5. Times in ms;
+    // AR interpolated (optionally eased) between keyframes, nearest value held at the ends. Empty
+    // string = a single constant AR.
     public class VamArProfile
     {
         private readonly List<ArKeyframe> _keys = new List<ArKeyframe>();
@@ -92,7 +86,6 @@ namespace StorybrewScripts.Vam
             if (time <= _keys[0].Time) return _keys[0].Ar;
             if (time >= _keys[_keys.Count - 1].Time) return _keys[_keys.Count - 1].Ar;
 
-            // Find the segment [k0, k1] containing time.
             for (int i = 0; i < _keys.Count - 1; i++)
             {
                 var k0 = _keys[i];

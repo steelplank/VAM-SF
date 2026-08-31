@@ -24,28 +24,10 @@ namespace StorybrewScripts.Vam
         public bool StepOut;     // leaving transition is instant  (scope "before")
     }
 
-    // A combined AR + fake-Hidden profile parsed from a text file (one keyframe per line).
-    //
-    //   time:ar[:flag[:flag...]]
-    //
-    // Flags (optional, any order, case-insensitive):
-    //   - an easing name: linear/none, sine, sinein, sineout, quad, quadin, quadout,
-    //                     cubic, cubicin, cubicout  (curve used to ease INTO this keyframe)
-    //   - a scope:  both (default) | before | after
-    //         both   -> eased on both sides
-    //         after  -> the transition INTO this keyframe is INSTANT (hold the previous value,
-    //                   then snap here). This is how you make a SUDDEN change at this time.
-    //         before -> the transition OUT of this keyframe is INSTANT (this value holds until
-    //                   the next keyframe, then snaps there).
-    //   - hd fade: bare "hd" (or hd=true) = osu!'s default Hidden; hd=false = off; hd=0..10 dials
-    //       WHERE the fade happens (0 = off, 5 = osu default, 10 = hardest). The fade keeps osu!'s
-    //       exact width at every setting; the number just slides the line up/down the screen.
-    //
-    // The AR value is required per line, except an HD-only line may leave it blank (time::hd=1)
-    // or use '-' / '_' to mean "no AR keyframe here, only HD".
-    //
-    // Lines starting with '#' or '//' are comments; blank lines are ignored; anything after a
-    // '#' on a line is stripped as an inline comment.
+    // A combined AR + fake-Hidden + fade-in profile parsed from text, one keyframe per line:
+    // 'time:ar[:flag...]'. Flags (any order): an easing name, a scope (both/before/after) for
+    // whether the transition is eased or instant, hd=0..10 / fi=0..10 (bare = osu default). AR may
+    // be blank or '-'/'_' on an HD-only line; # and // mark comments.
     public class VamProfile
     {
         private readonly List<VamProfileKey> _arKeys = new List<VamProfileKey>();
@@ -86,7 +68,6 @@ namespace StorybrewScripts.Vam
             {
                 var raw = lines[lineNo];
 
-                // strip inline comments
                 int hash = raw.IndexOf('#');
                 if (hash >= 0) raw = raw.Substring(0, hash);
                 int slash = raw.IndexOf("//", StringComparison.Ordinal);
@@ -141,9 +122,7 @@ namespace StorybrewScripts.Vam
 
                     if (low.StartsWith("hd"))
                     {
-                        // bare "hd" / hd=true / hd=on  -> osu!'s default Hidden (scale 5)
-                        // hd=false / hd=off            -> off (scale 0)
-                        // hd=<0..10>                   -> a fade scale (0 visible .. 10 invisible)
+                        // bare hd / hd=true = default Hidden (5); hd=false = off (0); hd=0..10 = fade scale
                         double hd = OsuDefaultHdScale;   // bare "hd" == old hd=1 == normal Hidden
                         int eq = low.IndexOf('=');
                         if (eq >= 0)
@@ -164,9 +143,7 @@ namespace StorybrewScripts.Vam
 
                     if (low.StartsWith("fi"))
                     {
-                        // bare "fi" / fi=true / fi=on  -> normal Fade In (scale 5)
-                        // fi=false / fi=off            -> off (scale 0)
-                        // fi=<0..10>                   -> reveal scale (0 off .. 10 revealed latest)
+                        // bare fi / fi=true = normal Fade In (5); fi=false = off (0); fi=0..10 = reveal scale
                         double fi = DefaultFiScale;
                         int eq = low.IndexOf('=');
                         if (eq >= 0)

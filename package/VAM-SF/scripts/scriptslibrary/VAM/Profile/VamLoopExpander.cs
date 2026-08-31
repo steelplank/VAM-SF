@@ -5,39 +5,11 @@ using System.Text;
 
 namespace StorybrewScripts.Vam
 {
-    // Preprocessor for VAM-profile.txt: expands compact `loop ... end` blocks into explicit
-    // time:value keyframe lines BEFORE any section parser runs. Because it is pure text expansion
-    // it works uniformly everywhere keyframes live: [sv], the top-level AR/HD keyframes, and
-    // [mod:*] blocks.
-    //
-    // Syntax:
-    //   loop <start> <beat-fraction> -> <end>
-    //   <value line>
-    //   <value line>
-    //   ...
-    //   end
-    //
-    //   <start>          time (ms) of the FIRST keyframe. Snapped to the osu! beat grid.
-    //   <beat-fraction>  spacing between keyframes as a fraction of a beat: "1/2", "3/4", "2/3",
-    //                    "5/7", or a plain decimal ("0.5"). Turned into ms using the map's
-    //                    uninherited (red) timing in force at <start>, so it lines up with osu!'s
-    //                    own snapping.
-    //   <end>            time (ms) the loop may run up to. This is an END TIME, not a repeat count -
-    //                    the "->" is optional sugar and may be dropped.
-    //   value lines      the RIGHT-HAND SIDE of a keyframe, i.e. everything that would follow
-    //                    "time:" - "0.5", "1", "9:sine", "-:hd=3", ... They are cycled in order,
-    //                    one per emitted keyframe (2 values over 6 keyframes => A B A B A B).
-    //
-    // Only WHOLE cycles of the value list are emitted, so a loop ALWAYS ends on the last value. If
-    // only part of a final cycle would fit before <end>, that tail is dropped rather than leaving the
-    // pattern mid-cycle: values A,B over 5 available slots emit A B A B (ending on B), not A B A B A.
-    //
-    // Keyframe times match osu!'s editor rounding exactly: the exact grid position offset + k*step
-    // is rounded HALF UP. So a loop reproduces, tick for tick, what you'd get snapping the notes by
-    // hand - including osu!'s notorious off-by-one rounding.
-    //
-    // The timing point used is the one in force at <start>; a red line inside the loop's span does
-    // not re-anchor it (the whole block keeps one beat length), which keeps the pattern regular.
+    // Preprocessor for VAM-profile.txt: expands compact `loop <start> <beat-fraction> -> <end> ...
+    // end` blocks into explicit time:value lines before any section parser runs, so it works for
+    // [sv], top-level AR/HD, and [mod:*] alike. Value lines cycle in order and only WHOLE cycles are
+    // emitted (a loop always ends on the last value). Times snap to the osu! beat grid and round
+    // HALF UP, matching the editor tick-for-tick; the timing point at <start> anchors the whole block.
     public static class VamLoopExpander
     {
         // Hard safety cap so a huge span with a tiny fraction can't emit an unbounded file.

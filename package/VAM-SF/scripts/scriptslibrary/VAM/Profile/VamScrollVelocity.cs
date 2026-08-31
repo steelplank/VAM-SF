@@ -4,44 +4,27 @@ using System.Globalization;
 
 namespace StorybrewScripts.Vam
 {
-    // Core scroll-velocity timeline for osu!catch - a first-class VAM:SF feature, alongside AR and
-    // HD (not a mod). A single velocity timeline scales how fast EVERY object falls at each moment:
-    // spike it and they all rush, drop it and they crawl or freeze in place. Each object still
-    // reaches the catcher at its exact hit time and x, because its on-screen height is the velocity
-    // integrated backwards from its own catch. The AR profile sets the base fall speed; SV
-    // multiplies that base speed over time.
-    //
-    // Configured in VAM-profile.txt in its own [sv] section, separate from the AR/HD keyframes:
-    //
-    //   [sv]
-    //   60000:6      # from 60.0s, fall 6x speed (SV is 1 before the first keyframe)
-    //   60500:0      # from 60.5s, freeze in place
-    //   60900:0.15   # from 60.9s, slow creep
-    //   61200:1      # from 61.2s, back to normal
-    //
-    //   value = velocity MULTIPLIER on the normal (AR) fall speed. 1 = normal, >1 faster, <1 slower,
-    //   0 = frozen. Never negative. Stepped: a value holds until the next keyframe; it is 1 before
-    //   the first keyframe and holds the last value after the last (end with :1 to return to normal).
-    //   HD is not adjusted while SV is active.
+    // Scroll-velocity timeline: a stepped multiplier scales how fast every object falls over time,
+    // while each still lands on its exact beat and x (the fall height is SV integrated backwards from
+    // the catch). Read from the [sv] section of VAM-profile.txt; 1x before the first keyframe, last
+    // value held after it. Syntax lives in VAM-profile.txt.
     public sealed class VamScrollVelocity
     {
-        readonly List<double> _t = new List<double>();  // node times (asc)
-        readonly List<double> _v = new List<double>();  // multiplier from that node until the next
-        readonly List<double> _S = new List<double>();  // cumulative integral of SV at each node (S(_t[0]) = 0)
+        readonly List<double> _t = new List<double>();  // keyframe times, ascending
+        readonly List<double> _v = new List<double>();  // multiplier held from each time to the next
+        readonly List<double> _S = new List<double>();  // SV integrated up to each time, S(_t[0]) = 0
         double _firstT, _lastT;
 
         public bool HasKeyframes { get { return _t.Count > 0; } }
 
-        // Build from the full VAM-profile.txt text. Reads ONLY the [sv] section; AR/HD lines and any
-        // [mod:*] blocks are ignored. Null / missing section => HasKeyframes == false (a pure no-op).
+        // Missing/empty [sv] section => HasKeyframes false (a no-op).
         public VamScrollVelocity(string profileText)
         {
             var nodes = ParseSvSection(profileText);
             nodes.Sort((a, b) => a.Key.CompareTo(b.Key));
             foreach (var n in nodes)
             {
-                // ignore a duplicate-time node (keep the first); stepped SV can't hold two values at once
-                if (_t.Count > 0 && n.Key == _t[_t.Count - 1]) continue;
+                if (_t.Count > 0 && n.Key == _t[_t.Count - 1]) continue;  // stepped SV holds one value per time
                 _t.Add(n.Key);
                 _v.Add(n.Value < 0 ? 0 : n.Value);
             }
@@ -52,9 +35,8 @@ namespace StorybrewScripts.Vam
             _firstT = _t[0]; _lastT = _t[_t.Count - 1];
         }
 
-        // Reshape a built plan's fall so the object moves at vk*SV(t) throughout, still landing at its
-        // exact catch time and x. No-op when the fall never overlaps the timeline. CatchTime and the
-        // catch keyframe (x, CatchY) are left untouched; only the spawn side and the path are rewritten.
+        // Rewrite a plan's fall to move at the SV-scaled speed, still landing at its catch time and x.
+        // No-op unless the fall overlaps the timeline; only the spawn side and the path change.
         public void Reshape(VamPlan plan)
         {
             if (_t.Count == 0 || plan.Position.Count < 2) return;
@@ -66,7 +48,6 @@ namespace StorybrewScripts.Vam
             double basePreempt = catchTime - spawnBase;
             if (basePreempt <= 0) return;
 
-            // only reshape when the fall actually overlaps the SV timeline
             if (catchTime <= _firstT || spawnBase >= _lastT) return;
 
             double x = catchKey.Value.X;
@@ -77,7 +58,7 @@ namespace StorybrewScripts.Vam
             double vk = dist / basePreempt;      // base fall speed, units/ms
 
             double sCatch = SAt(catchTime);
-            double target = sCatch - basePreempt; // S value at the new spawn (remaining = full dist)
+            double target = sCatch - basePreempt;
             double newSpawn = InvertS(target);
             if (newSpawn >= catchTime) return;
 
@@ -94,25 +75,24 @@ namespace StorybrewScripts.Vam
             }
             keys.Add(new Key<Vec2>(catchTime, new Vec2(x, catchY), StorybrewCommon.Storyboarding.OsbEasing.None));
 
-            plan.SpawnTime = newSpawn;   // fade-in follows the new appearance time
+            plan.SpawnTime = newSpawn;
             plan.Preempt = catchTime - newSpawn;
         }
 
-        // Cumulative integral of SV: SV = 1 before the first node, stepped between, last value held
-        // after the last. Anchored so S(_t[0]) = 0.
+        // SV integrated to 'time' (SV = 1 before the first node, stepped between, last value held after).
         double SAt(double time)
         {
-            if (time <= _firstT) return time - _firstT;                        // SV = 1 before first
+            if (time <= _firstT) return time - _firstT;
             if (time >= _lastT) return _S[_S.Count - 1] + _v[_v.Count - 1] * (time - _lastT);
             for (int i = _t.Count - 2; i >= 0; i--)
                 if (time >= _t[i]) return _S[i] + _v[i] * (time - _t[i]);
             return 0.0;
         }
 
-        // Earliest time t with S(t) = target (S is non-decreasing; flat during a freeze).
+        // Earliest time with S(t) = target (S is flat during a freeze, so pick the start of it).
         double InvertS(double target)
         {
-            if (target <= 0.0) return _firstT + target;                        // pre-first, SV = 1
+            if (target <= 0.0) return _firstT + target;
             double sLast = _S[_S.Count - 1];
             if (target >= sLast)
             {
@@ -127,9 +107,7 @@ namespace StorybrewScripts.Vam
             return _firstT;
         }
 
-        // The stepped SV multiplier in force at a time: 1 before the first node, the segment value
-        // in between, and the last value held after the final node. Used by the SV tint/glow cue to
-        // tell whether an object lands while SV is off its 1x baseline.
+        // Stepped multiplier at 'time'.
         public double MultiplierAt(double time)
         {
             if (_t.Count == 0) return 1.0;
@@ -139,11 +117,9 @@ namespace StorybrewScripts.Vam
             return 1.0;
         }
 
-        // Largest |multiplier - 1| anywhere in [time-window, time+window]. The SV tint uses this
-        // instead of a single-instant sample so an object counts as "on an SV change" when its beat
-        // sits ON or a few ms from a boundary - e.g. a flattened slider end landing exactly on the
-        // return to 1x, where an exact sample lands on the 1x side and rounding makes it flaky.
-        // 0 when SV never leaves 1x across the whole window.
+        // Largest |multiplier - 1| within +/- window of 'time'. The SV tint uses a window, not a point
+        // sample, so an object sitting exactly on a boundary (e.g. a slider end on the return to 1x)
+        // still counts as "on SV" despite rounding. 0 when SV stays at 1x across the window.
         public double MaxDeviation(double time, double window)
         {
             if (_t.Count == 0) return 0.0;
@@ -154,14 +130,14 @@ namespace StorybrewScripts.Vam
             {
                 double segStart = _t[i];
                 double segEnd = (i + 1 < _t.Count) ? _t[i + 1] : double.PositiveInfinity;
-                if (segStart <= hi && segEnd >= lo)   // segment overlaps the window
+                if (segStart <= hi && segEnd >= lo)
                     dev = Math.Max(dev, Math.Abs(_v[i] - 1.0));
             }
             return dev;
         }
 
-        // Pull the 'time:value' keyframes out of the [sv] section only. Comments (# or //) and blanks
-        // are skipped; any other [section] header ends the block. Case-insensitive on the header.
+        // 'time:value' pairs from the [sv] section only; # and // comments and blanks skipped, any
+        // other [section] header ends it.
         static List<KeyValuePair<double, double>> ParseSvSection(string text)
         {
             var list = new List<KeyValuePair<double, double>>();
@@ -188,7 +164,7 @@ namespace StorybrewScripts.Vam
                 if (colon < 0) continue;
                 var left = line.Substring(0, colon).Trim();
                 var right = line.Substring(colon + 1).Trim();
-                var vtok = right.Split(':')[0].Trim();   // tolerate trailing flags after a 2nd colon
+                var vtok = right.Split(':')[0].Trim();   // ignore trailing flags
 
                 double t, val;
                 if (double.TryParse(left, NumberStyles.Any, CultureInfo.InvariantCulture, out t) &&

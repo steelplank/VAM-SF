@@ -59,13 +59,11 @@ namespace StorybrewScripts.Vam
         const double OsuHdFadeStartFrac = 0.40, OsuHdFadeWidthFrac = OsuHiddenDurationMul;
         const double ExitY = 540.0;
 
-        // Fade In geometry (fraction of the fall). The reveal COMPLETES at FiEndFrac; the object is
-        // invisible above it and fades in over a band of FiWidthFrac. fi=5 (normal) reveals by 0.25 -
-        // comfortably above HD's 0.40 fade-out start, so fi=5 + hd=5 leaves a visible reading window.
-        // Higher fi reveals lower (later): FiEndFrac += (fi-5)*FiPerLevel. Mirrors mania's ~21% default
-        // top cover, tuned to sit above the default Hidden band.
+        // Fade In geometry (fraction of the fall). Reveal COMPLETES at FiEndFrac; invisible above it,
+        // fading in over a band of FiWidthFrac. fi=5 reveals by 0.25 - above HD's 0.40 fade-out start,
+        // so fi=5 + hd=5 leaves a reading window. Higher fi reveals later: FiEndFrac += (fi-5)*FiPerLevel.
         const double FiEndFracAt5 = 0.25, FiWidthFrac = OsuHiddenDurationMul, FiPerLevel = 0.02;
-        const double FiMaxEndFrac = 0.90; // never hide the catch itself; always fully revealed before landing
+        const double FiMaxEndFrac = 0.90; // never hide the catch; fully revealed before landing
 
         readonly Dictionary<VamObject, double> trigStart = new Dictionary<VamObject, double>();
         readonly Dictionary<VamObject, double> trigEnd = new Dictionary<VamObject, double>();
@@ -129,10 +127,8 @@ namespace StorybrewScripts.Vam
                 plan.GlowAlpha = OsuHyperGlowAlpha;
             }
 
-            // SV tint + glow: when the scroll-velocity multiplier at this object's beat is off 1x,
-            // recolour it and give it a glow so the SV region reads at a glance. Applies to every
-            // type (fruit, droplet, tiny, banana). A hyperdash keeps its red glow (that signal
-            // matters more); the body still takes the SV tint either way.
+            // SV tint + glow: when the SV multiplier at this beat is off 1x, recolour and glow so the
+            // SV region reads at a glance. All types; a hyperdash keeps its red glow, body still tinted.
             if (EnableSvColor && EnableScrollVelocity && ScrollVelocity != null && ScrollVelocity.HasKeyframes
                 && ScrollVelocity.MaxDeviation(obj.Time, SvColorWindow) > SvColorEpsilon)
             {
@@ -161,10 +157,9 @@ namespace StorybrewScripts.Vam
             if (EnableHidden) SetHidden(plan, obj, spawnTime, catchTime, preempt);
             if (EnableFadeIn) SetFadeIn(plan, obj, spawnTime, catchTime, preempt);
 
-            // Scroll velocity is the last core transform: it reshapes the finished fall so every
-            // object moves at the timeline's current multiplier, still landing on its beat. Runs on
-            // both the direct and modifier paths (it's part of the base plan, not the mod pipeline),
-            // so it is independent of EnableModifiers. No-op unless SV keyframes actually overlap.
+            // Scroll velocity is the last core transform: reshapes the finished fall so every object
+            // moves at the timeline's multiplier, still landing on its beat. Part of the base plan
+            // (not the mod pipeline), so independent of EnableModifiers. No-op unless SV overlaps.
             if (EnableScrollVelocity && ScrollVelocity != null && ScrollVelocity.HasKeyframes)
                 ScrollVelocity.Reshape(plan);
 
@@ -238,10 +233,8 @@ namespace StorybrewScripts.Vam
             if (endFrac > 1.0) endFrac = 1.0;
         }
 
-        // Fade In (profile 'fi' column). The object is invisible at spawn and fades in over
-        // [FiStart, FiEnd], where FiEnd is a fraction of the fall set by the fi scale. Composes with
-        // Hidden in the emitter (the two factors multiply), so the reveal and the HD fade-out carve a
-        // visible band between them.
+        // Fade In (profile 'fi' column). Invisible at spawn, fades in over [FiStart, FiEnd] (FiEnd a
+        // fraction of the fall set by fi). Composes with Hidden in the emitter (factors multiply).
         void SetFadeIn(VamPlan p, VamObject obj, double spawnTime, double catchTime, double preempt)
         {
             if (Profile == null || !Profile.HasFi) return;

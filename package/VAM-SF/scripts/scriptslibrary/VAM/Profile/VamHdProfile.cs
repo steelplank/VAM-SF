@@ -11,17 +11,10 @@ namespace StorybrewScripts.Vam
         public double Intensity;
     }
 
-    // Dynamic fake-Hidden profile — the HD analogue of VamArProfile.
-    //
-    // Configured from a text string so it lives in a storybrew [Configurable] field. Format:
-    // comma/semicolon/newline separated "time:intensity" pairs, intensity 0..1, e.g.
-    //     60000:0, 65000:1, 90000:1, 95000:0
-    // meaning: HD ramps IN from 0 to full over 60s..65s, stays full to 90s, then ramps OUT to
-    // 0 by 95s. Between keyframes the intensity is interpolated (optionally eased); before the
-    // first / after the last keyframe the nearest value is held. Intensity 0 = no HD (object
-    // stays fully visible), 1 = full osu!catch HD (object gone before the catch).
-    //
-    // If the string is empty, the profile is a single constant intensity (constantIntensity).
+    // Dynamic fake-Hidden profile - the HD analogue of VamArProfile. A text string of
+    // comma/semicolon/newline "time:intensity" pairs (0..1), e.g. 60000:0, 65000:1, 95000:0 to ramp
+    // HD in then out. Interpolated (optionally eased) between keyframes, nearest held at the ends;
+    // 0 = fully visible, 1 = gone before the catch. Empty = a constant intensity.
     public class VamHdProfile
     {
         private readonly List<HdKeyframe> _keys = new List<HdKeyframe>();
