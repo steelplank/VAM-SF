@@ -61,16 +61,13 @@ Using storyboard and overlay layer, we can generate gameplay objects identical t
 3. Run **`Install.bat`** and choose **Install**.
 4. In storybrew, add the effects and set the cover's OSB layers.
 
-<details>
-<summary>Full setup &amp; troubleshooting</summary>
-
 See the full guide: **[INSTALL.md](package/VAM-SF/INSTALL.md)** - scripted and manual install, storybrew setup, managing an install, and publishing.
-
-</details>
 
 ## Configuring
 
 Program AR, Hidden, and Scroll Velocity over time in **`VAM-profile.txt`** - the file documents its own syntax.
+
+For more detailed overview of all features, including creating your own mods, see **[GUIDE.md](docs/GUIDE.md)**
 
 ## Credits
 
