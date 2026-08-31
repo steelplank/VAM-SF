@@ -1,3 +1,11 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)"  srcset="docs/logo-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="docs/logo-light.png">
+    <img alt="VAM:SF" src="docs/logo-light.png" width="480">
+  </picture>
+</p>
+
 # VAM:SF - Variable AR Modification: Storybrew Framework (osu!catch)
 
 **Variable AR Modification - a storyboard framework for osu!catch.**
@@ -35,8 +43,9 @@ Using storyboard and overlay layer, we can generate gameplay objects identical t
 - **Player Skin Support** - with this enabled, skin elements are dynamically used! Rotation for square skins is fully supported!
 - **Miss Simulator** - fake "osu-like" simulation of a miss where the object will fall below the platter. (fruits-only feature)
 - **Countdown** - overlay can and will cover osu! built-in countdown so we have our own implementation!
-- **Cover with background support** - you should always use cover together with the generator but nobody said it has to be pure black
+- **Cover with background support** - you should always use cover together with the generator but nobody said it has to be pure black.
 - **Map Combo Colors** - an option to use map combo colors. (work in progress)
+- **Publish-ready script** - included some quality-of-life scripts that will make mass-edits easy and quick.
 - **Custom interpreter** - program keyframes and all efects in one file thanks to a robust interpreter. Now including loop statements!
 - **Mod support** - make own mods for the engine and share them with others! Basic template and example mod included, seamless integration with profile file.
 
