@@ -83,6 +83,10 @@
 #     It is x1 before the first line and HOLDS the last, so END WITH :1.
 #     Hidden is left alone while SV is running.
 #
+#     TIP: turn on EnableSvColor in the effect to tint + glow every object whose
+#     beat lands while SV is off x1 - a visual cue for the SV section. Colour set
+#     by SvColor. Hyperdashes keep their red glow.
+#
 # --- LOOP  (repeat a pattern without typing every keyframe) -------------------
 #
 #     loop <start> <beat-fraction> -> <end>

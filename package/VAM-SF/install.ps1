@@ -20,28 +20,55 @@
                      .osu untouched). Fallback when a version renamed files.
     uninstall   full removal: VAM code + sprites + VAM-profile, and revert every .osu to its
                 original backup.
-    osu-mod     (re)apply the optional .osu modification (strip new-combo + white colours) to an
-                existing install.
+    osu-mod     (re)apply the optional .osu modification (strip new-combo + white colours + add the
+                VAM tags: vam vamsf storyboard) to an existing install.
+    brand-bg    bake the usage card onto a copy of a diff's background and repoint that .osu to it
+                (song-select branding). Cover-crops the original to 16:9 the same way osu displays
+                it, stamps assets\usage-card.png on top, saves <bg>-vam.jpg, and leaves the original
+                background + a .osu backup untouched.
+    merge-sb    inline the storyboard (.osb) into a diff's .osu so it's self-contained (a publish
+                step). Keeps the .osu background + breaks, DROPS the video, appends the .osb's
+                storyboard, and DELETES the .osb so it isn't loaded twice. Run it on the COPY you're
+                shipping - storybrew re-creates the .osb on its next save.
+    publish     the one-shot release step for a finished diff (RECOMMENDED). On the chosen diff it:
+                strips new-combo + whitens colours + adds the VAM tags, sets AR & OD to 0, brands the
+                background with the usage card, inlines the storyboard, and deletes the .osb. Every
+                .osu is backed up first. Best run on the COPY you upload.
 
   Parameters:
-    -Action <install|upgrade|remove-scripts|uninstall|osu-mod>   run non-interactively
+    -Action <install|upgrade|remove-scripts|uninstall|osu-mod|brand-bg|merge-sb|publish>   run non-interactively
     -Force              skip the confirmation prompt
     -MapsetPath <path>  override the auto-detected mapset (song) folder
     -ProjectPath <path> override the auto-detected storybrew project folder
     -StripCombos        (install/osu-mod) apply the .osu combo strip + white colours
     -NoWidescreenFlag   do NOT set WidescreenStoryboard: 1
     -NoSkinFlag         do NOT set UseSkinSprites: 1
+    -CardPath <path>    (brand-bg) the usage-card PNG; default assets\usage-card.png. Author it on a
+                        full 1920x1080 transparent frame so it stamps 1:1.
+    -BrandDiff <text>   (brand-bg) only brand .osu whose filename contains this (else you're asked)
+    -CardX -CardY <n>   (brand-bg) card offset in the 1920x1080 space if it's NOT a full-frame export
+    -JpegQuality <n>    (brand-bg) exported background JPEG quality 1-100 (default 90)
+    -MergeDiff <text>   (merge-sb) only merge into .osu whose filename contains this (else you're asked)
+    -PublishDiff <text> (publish) the diff to publish, by filename substring (else you're asked)
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('install','upgrade','remove-scripts','uninstall','osu-mod')]
+    [ValidateSet('install','upgrade','remove-scripts','uninstall','osu-mod','brand-bg','merge-sb','publish')]
     [string]$Action,
     [switch]$Force,
     [string]$MapsetPath,
     [string]$ProjectPath,
     [switch]$StripCombos,
     [switch]$NoWidescreenFlag,
-    [switch]$NoSkinFlag
+    [switch]$NoSkinFlag,
+    [string]$CardPath,      # brand-bg: the usage-card PNG (full 1920x1080 transparent frame)
+    [string]$BrandDiff,     # brand-bg: only .osu whose name contains this (else you're asked)
+    [int]$CardX = 0,        # brand-bg: card offset if it's NOT a full-frame export
+    [int]$CardY = 0,
+    [ValidateRange(1,100)]
+    [int]$JpegQuality = 90, # brand-bg: JPEG quality of the exported background (1-100)
+    [string]$MergeDiff,     # merge-sb: only merge into .osu whose name contains this (else you're asked)
+    [string]$PublishDiff    # publish: the diff to publish (name substring; else you're asked)
 )
 
 $ErrorActionPreference = 'Stop'
@@ -50,6 +77,7 @@ $EffectFiles  = @('VAM_Generator.cs','VAM_Cover.cs','VAM_Countdown.cs')
 $LibFolders   = @('scriptslibrary/VAM')
 $ProfileFile  = 'VAM-profile.txt'
 $SpriteRel    = 'sb/vam'
+$VamTags      = @('vam','vamsf','storyboard')   # added to [Metadata] Tags with the combo mod / publish
 
 function Info($m){ Write-Host "  $m" }
 function Good($m){ Write-Host "  [OK] $m" -ForegroundColor Green }
@@ -166,6 +194,35 @@ function Edit-OsuStripCombos([System.Collections.Generic.List[string]]$lines){
     }
 }
 
+# Append tags to [Metadata] Tags (space-separated), skipping any already present (case-insensitive).
+function Add-OsuTags([System.Collections.Generic.List[string]]$lines, [string[]]$tags){
+    $m = Get-Section $lines '[Metadata]'
+    if ($m.Start -lt 0){ return }
+    $tagIdx = -1
+    for ($i = $m.Start + 1; $i -lt $m.End; $i++){ if ($lines[$i] -match '^\s*Tags\s*:'){ $tagIdx = $i; break } }
+    if ($tagIdx -lt 0){ $lines.Insert($m.Start + 1, ('Tags:' + ($tags -join ' '))); return }
+    $cur = ($lines[$tagIdx] -replace '^\s*Tags\s*:\s*', '')
+    $existing = @($cur -split '\s+' | Where-Object { $_ -ne '' })
+    $lower = @($existing | ForEach-Object { $_.ToLowerInvariant() })
+    $add = @($tags | Where-Object { $lower -notcontains $_.ToLowerInvariant() })
+    if ($add.Count -eq 0){ return }
+    $lines[$tagIdx] = 'Tags:' + (@($existing + $add) -join ' ')
+}
+
+# Read the [Events] background line (0,0,"file",..). Returns @{ Name=..; Index=.. } or $null.
+function Get-OsuBackground([System.Collections.Generic.List[string]]$lines){
+    $ev = Get-Section $lines '[Events]'
+    if ($ev.Start -lt 0){ return $null }
+    for ($i = $ev.Start + 1; $i -lt $ev.End; $i++){
+        if ($lines[$i].Trim() -match '^(0|Background)\s*,\s*0\s*,\s*"([^"]+)"'){ return @{ Name = $Matches[2]; Index = $i } }
+    }
+    return $null
+}
+# Swap only the quoted filename on the background line (keeps any x,y offsets).
+function Set-OsuBackground([System.Collections.Generic.List[string]]$lines, [int]$index, [string]$newName){
+    $lines[$index] = $lines[$index] -replace '"([^"]+)"', ('"' + $newName + '"')
+}
+
 function Read-Lines([string]$path){
     $raw = [System.IO.File]::ReadAllText($path)
     $list = [System.Collections.Generic.List[string]]::new()
@@ -258,7 +315,7 @@ function Patch-Osus([array]$osuFiles, [bool]$doFlags, [bool]$doCombos){
             if (-not $NoWidescreenFlag){ Set-OsuFlag $lines 'WidescreenStoryboard' '1' }
             if (-not $NoSkinFlag){ Set-OsuFlag $lines 'UseSkinSprites' '1' }
         }
-        if ($doCombos){ Edit-OsuStripCombos $lines }
+        if ($doCombos){ Edit-OsuStripCombos $lines; Add-OsuTags $lines $VamTags }
         Write-Lines $osu.FullName $lines
     }
 }
@@ -362,10 +419,229 @@ function Do-OsuMod {
     Need-Mapset
     $osuFiles = @(Get-ChildItem -LiteralPath $MapsetPath -Filter *.osu -File)
     if ($osuFiles.Count -eq 0){ Die "No .osu files in the mapset." }
-    Step "Applying .osu combo mod (strip new-combo + white colours)"
+    Step "Applying .osu combo mod (strip new-combo + white colours + tags)"
     Backup-Osus $osuFiles | Out-Null
     Patch-Osus $osuFiles $false $true
-    Good "$($osuFiles.Count) .osu modified (originals safe in backups)."
+    Good "$($osuFiles.Count) .osu modified: new-combo stripped, colours whitened, tags added ($($VamTags -join ', ')). Originals safe in backups."
+}
+
+# ---- shared publish primitives ----
+
+# Pick target .osu(s): -filter matches by name substring; else prompt. $allowAll adds an [A] option.
+function Select-Diffs($osuFiles, $filter, $prompt, [bool]$allowAll){
+    if ($filter){
+        $m = @($osuFiles | Where-Object { $_.Name -like "*$filter*" })
+        if ($m.Count -eq 0){ Die "No .osu name contained '$filter'." }
+        return ,$m
+    }
+    Write-Host ""
+    Write-Host "  $prompt" -ForegroundColor Cyan
+    for ($i = 0; $i -lt $osuFiles.Count; $i++){ Info ("[{0}] {1}" -f ($i + 1), $osuFiles[$i].Name) }
+    if ($allowAll){ Info "[A] all of them" }
+    $sel = Read-Host "  >"
+    if ($allowAll -and $sel -match '^(a|all)$'){ return ,$osuFiles }
+    if ($sel -match '^\d+$' -and [int]$sel -ge 1 -and [int]$sel -le $osuFiles.Count){ return ,@($osuFiles[[int]$sel - 1]) }
+    Die "Nothing selected."
+}
+
+# Set a key in [Difficulty] (osu writes these as 'Key:value', no space).
+function Set-OsuDifficulty([System.Collections.Generic.List[string]]$lines, [string]$key, [string]$value){
+    $d = Get-Section $lines '[Difficulty]'
+    if ($d.Start -lt 0){ return }
+    for ($i = $d.Start + 1; $i -lt $d.End; $i++){
+        if ($lines[$i] -match ('^\s*' + [regex]::Escape($key) + '\s*:')){ $lines[$i] = "${key}:${value}"; return }
+    }
+    $lines.Insert($d.Start + 1, "${key}:${value}")
+}
+
+# Read the .osb storyboard body: everything after '[Events]' (+ the '//Background and Video events'
+# comment); stray bg/video/break lines are dropped (those belong to the .osu).
+function Get-OsbBody($osbFile){
+    $osbLines = Read-Lines $osbFile.FullName
+    $startBody = 0
+    for ($i = 0; $i -lt $osbLines.Count; $i++){ if ($osbLines[$i].Trim() -eq '[Events]'){ $startBody = $i + 1; break } }
+    if ($startBody -lt $osbLines.Count -and $osbLines[$startBody].Trim() -eq '//Background and Video events'){ $startBody++ }
+    $body = New-Object System.Collections.Generic.List[string]
+    for ($i = $startBody; $i -lt $osbLines.Count; $i++){
+        $t = $osbLines[$i].Trim()
+        if ($t.Length -gt 0 -and -not $t.StartsWith('//')){
+            $f0 = ($t -split ',')[0].Trim()
+            if ($f0 -match '^(0|1|2|Background|Video|Break)$'){ continue }
+        }
+        $body.Add($osbLines[$i])
+    }
+    while ($body.Count -gt 0 -and $body[$body.Count - 1].Trim() -eq ''){ $body.RemoveAt($body.Count - 1) }
+    return ,$body
+}
+
+# Bake the branded background for ONE .osu: cover-crop original -> 16:9, stamp the card, repoint.
+function Invoke-BrandOsu($osu, $card, $jpegCodec, $encParams){
+    $lines = Read-Lines $osu.FullName
+    $bg = Get-OsuBackground $lines
+    if (-not $bg){ Warn "$($osu.Name): no background line - skipped."; return $false }
+    if ($bg.Name -match '-vam\.(png|jpg)$'){ Warn "$($osu.Name): already branded ('$($bg.Name)') - skipped."; return $false }
+    $origBg = Join-Path $MapsetPath $bg.Name
+    if (-not (Test-Path -LiteralPath $origBg)){ Warn "$($osu.Name): background '$($bg.Name)' not found - skipped."; return $false }
+
+    $outName = [System.IO.Path]::GetFileNameWithoutExtension($bg.Name) + '-vam.jpg'
+    $outPath = Join-Path $MapsetPath $outName
+    $cw = 1920; $ch = 1080
+    $src = [System.Drawing.Image]::FromFile((Resolve-Path -LiteralPath $origBg).Path)
+    try {
+        $scale = [Math]::Max($cw / [double]$src.Width, $ch / [double]$src.Height)
+        $dw = [int][Math]::Ceiling($src.Width * $scale)
+        $dh = [int][Math]::Ceiling($src.Height * $scale)
+        $ox = [int](($cw - $dw) / 2); $oy = [int](($ch - $dh) / 2)
+        $canvas = New-Object System.Drawing.Bitmap($cw, $ch)
+        $g = [System.Drawing.Graphics]::FromImage($canvas)
+        $g.InterpolationMode = [System.Drawing.Drawing2D.InterpolationMode]::HighQualityBicubic
+        $g.PixelOffsetMode   = [System.Drawing.Drawing2D.PixelOffsetMode]::HighQuality
+        $g.DrawImage($src, $ox, $oy, $dw, $dh)
+        $g.DrawImage($card, [int]$CardX, [int]$CardY, $card.Width, $card.Height)
+        $g.Dispose()
+        $canvas.Save($outPath, $jpegCodec, $encParams)
+        $canvas.Dispose()
+    } finally { $src.Dispose() }
+    Set-OsuBackground $lines $bg.Index $outName
+    Write-Lines $osu.FullName $lines
+    Good "$($osu.Name): background -> $outName  (original '$($bg.Name)' kept)"
+    return $true
+}
+
+# Inline a storyboard body into ONE .osu: keep bg + breaks, DROP video, append the storyboard.
+function Invoke-MergeOsu($osu, $osbBody){
+    $lines = Read-Lines $osu.FullName
+    $ev = Get-Section $lines '[Events]'
+    if ($ev.Start -lt 0){ Warn "$($osu.Name): no [Events] section - skipped."; return $false }
+    $bg = $null
+    $breaks = New-Object System.Collections.Generic.List[string]
+    for ($i = $ev.Start + 1; $i -lt $ev.End; $i++){
+        $t = $lines[$i].Trim()
+        if ($t.Length -eq 0 -or $t.StartsWith('//')){ continue }
+        $first = ($t -split ',')[0].Trim()
+        if ($first -match '^(0|Background)$'){ if (-not $bg){ $bg = $t } }
+        elseif ($first -match '^(2|Break)$'){ $breaks.Add($t) }
+    }
+    $body = New-Object System.Collections.Generic.List[string]
+    $body.Add('//Background and Video events')
+    if ($bg){ $body.Add($bg) }
+    if ($breaks.Count -gt 0){ $body.Add('//Break Periods'); foreach ($b in $breaks){ $body.Add($b) } }
+    foreach ($l in $osbBody){ $body.Add($l) }
+    for ($i = $ev.End - 1; $i -gt $ev.Start; $i--){ $lines.RemoveAt($i) }
+    $ins = $ev.Start + 1
+    foreach ($l in $body){ $lines.Insert($ins, $l); $ins++ }
+    Write-Lines $osu.FullName $lines
+    Good "$($osu.Name): storyboard inlined ($($osbBody.Count) line(s)); video dropped, bg + $($breaks.Count) break(s) kept"
+    return $true
+}
+
+function Do-BrandBackground {
+    Need-Mapset
+
+    if (-not $CardPath){ $CardPath = Join-Path $Here 'assets/usage-card.png' }
+    if (-not (Test-Path -LiteralPath $CardPath)){
+        Die ("Usage-card image not found:`n    {0}`n    Export your card as a full 1920x1080 transparent PNG and drop it there, or pass -CardPath." -f $CardPath)
+    }
+    try { Add-Type -AssemblyName System.Drawing -ErrorAction Stop }
+    catch { Die "System.Drawing isn't available. Run this with Windows PowerShell (right-click install.ps1 -> Run with PowerShell)." }
+
+    $osuFiles = @(Get-ChildItem -LiteralPath $MapsetPath -Filter *.osu -File)
+    if ($osuFiles.Count -eq 0){ Die "No .osu files in the mapset." }
+
+    $targets = Select-Diffs $osuFiles $BrandDiff "Which difficulty's background should carry the usage card?" $true
+
+    Step "Backing up .osu files (into this folder\backups)"
+    Backup-Osus $osuFiles | Out-Null
+
+    Step "Branding background(s)"
+    $jpegCodec  = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.FormatID -eq [System.Drawing.Imaging.ImageFormat]::Jpeg.Guid } | Select-Object -First 1
+    $encParams  = New-Object System.Drawing.Imaging.EncoderParameters(1)
+    $encParams.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter([System.Drawing.Imaging.Encoder]::Quality, [int64]$JpegQuality)
+    $card = [System.Drawing.Image]::FromFile((Resolve-Path -LiteralPath $CardPath).Path)
+    try { foreach ($osu in $targets){ [void](Invoke-BrandOsu $osu $card $jpegCodec $encParams) } } finally { $card.Dispose() }
+
+    Step "Done."
+    Info "The branded background shows in SONG SELECT (and briefly on load)."
+    Warn "Cover note: the default cover is a black tile, so GAMEPLAY is unaffected. Only if your"
+    Info "VAM_Cover 'SpritePath' is set to 'background' should you change it to the ORIGINAL background"
+    Info "filename (kept in the mapset), so the usage card never bakes into the cover."
+    Info "Originals are safe in this folder\backups; 'uninstall' reverts every .osu."
+}
+
+function Do-MergeStoryboard {
+    Need-Mapset
+    $osuFiles = @(Get-ChildItem -LiteralPath $MapsetPath -Filter *.osu -File)
+    if ($osuFiles.Count -eq 0){ Die "No .osu files in the mapset." }
+    $osbFiles = @(Get-ChildItem -LiteralPath $MapsetPath -Filter *.osb -File)
+    if ($osbFiles.Count -eq 0){ Die "No .osb in the mapset - nothing to merge. Save/export your storyboard first." }
+    $osbFile = $osbFiles[0]
+    if ($osbFiles.Count -gt 1){ Warn "Multiple .osb found; using '$($osbFile.Name)'." }
+
+    $targets = Select-Diffs $osuFiles $MergeDiff "Which difficulty should carry the inline storyboard?" $true
+
+    Step "Backing up .osu files (into this folder\backups)"
+    Backup-Osus $osuFiles | Out-Null
+
+    $osbBody = Get-OsbBody $osbFile
+    if ($osbBody.Count -eq 0){ Die "The .osb had no storyboard content after its header." }
+
+    Step "Inlining storyboard -> .osu"
+    foreach ($osu in $targets){ [void](Invoke-MergeOsu $osu $osbBody) }
+
+    Step "Deleting the .osb"
+    Remove-Item -LiteralPath $osbFile.FullName -Force
+    Good "deleted '$($osbFile.Name)' (storybrew recreates it in seconds on the next save)"
+
+    Step "Done."
+    Warn "PUBLISH step: the .osb is gone, so OTHER diffs lose the storyboard. Run this on the COPY you're"
+    Info "shipping - your working storybrew project still has everything and rebuilds the .osb on save."
+    Info "The .osu originals are safe in this folder\backups; 'uninstall' reverts them."
+}
+
+function Do-QuickPublish {
+    Need-Mapset
+    if (-not $CardPath){ $CardPath = Join-Path $Here 'assets/usage-card.png' }
+    if (-not (Test-Path -LiteralPath $CardPath)){ Die ("Usage-card image not found:`n    {0}`n    Export it as a full 1920x1080 transparent PNG, or pass -CardPath." -f $CardPath) }
+    try { Add-Type -AssemblyName System.Drawing -ErrorAction Stop } catch { Die "System.Drawing isn't available. Run with Windows PowerShell (right-click -> Run with PowerShell)." }
+    $osuFiles = @(Get-ChildItem -LiteralPath $MapsetPath -Filter *.osu -File)
+    if ($osuFiles.Count -eq 0){ Die "No .osu files in the mapset." }
+    $osbFiles = @(Get-ChildItem -LiteralPath $MapsetPath -Filter *.osb -File)
+    if ($osbFiles.Count -eq 0){ Die "No .osb in the mapset - save/export your storyboard first." }
+    $osbFile = $osbFiles[0]
+    if ($osbFiles.Count -gt 1){ Warn "Multiple .osb found; using '$($osbFile.Name)'." }
+
+    $filter = if ($PublishDiff){ $PublishDiff } else { $BrandDiff }
+    $target = (Select-Diffs $osuFiles $filter "Which difficulty are you publishing?" $false)[0]
+
+    Step "Backing up .osu files (into this folder\backups)"
+    Backup-Osus $osuFiles | Out-Null
+
+    Step "1/3  Combos + colours + difficulty + tags"
+    $lines = Read-Lines $target.FullName
+    Edit-OsuStripCombos $lines
+    Add-OsuTags $lines $VamTags
+    Set-OsuDifficulty $lines 'ApproachRate' '0'
+    Set-OsuDifficulty $lines 'OverallDifficulty' '0'
+    Write-Lines $target.FullName $lines
+    Good "$($target.Name): new-combo stripped, colours whitened, AR & OD set to 0, tags added ($($VamTags -join ', '))"
+
+    Step "2/3  Brand background"
+    $jpegCodec  = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.FormatID -eq [System.Drawing.Imaging.ImageFormat]::Jpeg.Guid } | Select-Object -First 1
+    $encParams  = New-Object System.Drawing.Imaging.EncoderParameters(1)
+    $encParams.Param[0] = New-Object System.Drawing.Imaging.EncoderParameter([System.Drawing.Imaging.Encoder]::Quality, [int64]$JpegQuality)
+    $card = [System.Drawing.Image]::FromFile((Resolve-Path -LiteralPath $CardPath).Path)
+    try { [void](Invoke-BrandOsu $target $card $jpegCodec $encParams) } finally { $card.Dispose() }
+
+    Step "3/3  Inline storyboard + delete .osb"
+    $osbBody = Get-OsbBody $osbFile
+    if ($osbBody.Count -eq 0){ Die "The .osb had no storyboard content after its header." }
+    [void](Invoke-MergeOsu $target $osbBody)
+    Remove-Item -LiteralPath $osbFile.FullName -Force
+    Good "storyboard inlined; '$($osbFile.Name)' deleted (storybrew recreates it on save)"
+
+    Step "Published '$($target.Name)'."
+    Warn "This edited your working mapset and deleted the .osb (storybrew rebuilds it on the next save)."
+    Info "Ideally run this on the COPY you upload. Originals are in this folder\backups; 'uninstall' reverts the .osu."
 }
 
 function Confirm-Or-Exit($summary){
@@ -385,7 +661,10 @@ if (-not $Action){
         Info "[1] Upgrade / reinstall (refresh code + sprites; keep VAM-profile and .osu)"
         Info "[2] Remove scripts only (keep VAM-profile, sprites, .osu) - upgrade fallback"
         Info "[3] Full uninstall (remove everything + revert .osu to originals)"
-        Info "[4] (Re)apply .osu combo mod (strip new-combo + white colours)"
+        Info "[4] (Re)apply .osu combo mod (strip new-combo + white colours + tags)"
+        Info "[5] Quick publish  (combo strip + AR/OD 0 + brand background + inline .osb) - recommended"
+        Info "[6] Brand a diff's background with the usage card only"
+        Info "[7] Merge storyboard (.osb) into a diff's .osu only"
     }
     Info "[0] Exit"
     $sel = Read-Host "  >"
@@ -394,6 +673,9 @@ if (-not $Action){
         '2' { if ($isInstalled){ $Action = 'remove-scripts' } }
         '3' { if ($isInstalled){ $Action = 'uninstall' } }
         '4' { if ($isInstalled){ $Action = 'osu-mod'; $StripCombos = [switch]$true } }
+        '5' { if ($isInstalled){ $Action = 'publish' } }
+        '6' { if ($isInstalled){ $Action = 'brand-bg' } }
+        '7' { if ($isInstalled){ $Action = 'merge-sb' } }
         default { Write-Host "Bye." ; exit 0 }
     }
     if (-not $Action){ Write-Host "Bye." ; exit 0 }
@@ -404,7 +686,10 @@ switch ($Action){
     'upgrade'        { Confirm-Or-Exit "About to UPGRADE: remove old VAM code, install the new payload. VAM-profile and .osu are kept."; Do-InstallCore $true }
     'remove-scripts' { Confirm-Or-Exit "About to REMOVE the VAM code only. VAM-profile, sprites and .osu are kept."; Do-RemoveScripts }
     'uninstall'      { Confirm-Or-Exit "FULL UNINSTALL: removes VAM code + sprites + VAM-profile and REVERTS every .osu to its backup."; Do-Uninstall }
-    'osu-mod'        { Confirm-Or-Exit "About to modify .osu files (strip new-combo + white colours). Originals are backed up."; Do-OsuMod }
+    'osu-mod'        { Confirm-Or-Exit "About to modify .osu files (strip new-combo + white colours + add tags: $($VamTags -join ', ')). Originals are backed up."; Do-OsuMod }
+    'brand-bg'       { Confirm-Or-Exit "About to bake the usage card onto a copy of the diff's background and repoint that .osu. Original background + .osu backup are kept."; Do-BrandBackground }
+    'merge-sb'       { Confirm-Or-Exit "PUBLISH: inline the .osb storyboard into the chosen .osu (drops video, keeps bg+breaks) and DELETE the .osb. Do this on a shipping COPY - storybrew recreates the .osb on save."; Do-MergeStoryboard }
+    'publish'        { Confirm-Or-Exit "QUICK PUBLISH one diff: strip new-combo + white colours, set AR & OD to 0, brand the background with the usage card, inline the storyboard and DELETE the .osb. Backs up every .osu first; best run on the COPY you upload."; Do-QuickPublish }
 }
 
 Write-Host ""

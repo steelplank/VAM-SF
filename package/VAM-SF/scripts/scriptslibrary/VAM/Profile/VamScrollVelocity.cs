@@ -127,6 +127,39 @@ namespace StorybrewScripts.Vam
             return _firstT;
         }
 
+        // The stepped SV multiplier in force at a time: 1 before the first node, the segment value
+        // in between, and the last value held after the final node. Used by the SV tint/glow cue to
+        // tell whether an object lands while SV is off its 1x baseline.
+        public double MultiplierAt(double time)
+        {
+            if (_t.Count == 0) return 1.0;
+            if (time < _t[0]) return 1.0;
+            for (int i = _t.Count - 1; i >= 0; i--)
+                if (time >= _t[i]) return _v[i];
+            return 1.0;
+        }
+
+        // Largest |multiplier - 1| anywhere in [time-window, time+window]. The SV tint uses this
+        // instead of a single-instant sample so an object counts as "on an SV change" when its beat
+        // sits ON or a few ms from a boundary - e.g. a flattened slider end landing exactly on the
+        // return to 1x, where an exact sample lands on the 1x side and rounding makes it flaky.
+        // 0 when SV never leaves 1x across the whole window.
+        public double MaxDeviation(double time, double window)
+        {
+            if (_t.Count == 0) return 0.0;
+            if (window < 0) window = 0;
+            double lo = time - window, hi = time + window;
+            double dev = 0.0;
+            for (int i = 0; i < _t.Count; i++)
+            {
+                double segStart = _t[i];
+                double segEnd = (i + 1 < _t.Count) ? _t[i + 1] : double.PositiveInfinity;
+                if (segStart <= hi && segEnd >= lo)   // segment overlaps the window
+                    dev = Math.Max(dev, Math.Abs(_v[i] - 1.0));
+            }
+            return dev;
+        }
+
         // Pull the 'time:value' keyframes out of the [sv] section only. Comments (# or //) and blanks
         // are skipped; any other [section] header ends the block. Case-insensitive on the header.
         static List<KeyValuePair<double, double>> ParseSvSection(string text)

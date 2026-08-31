@@ -33,6 +33,8 @@ namespace StorybrewScripts
         [Configurable] public bool EnableFadeIn = true;
         [Description("Enable the mania-like sv timeline from the profile file.")]
         [Configurable] public bool EnableScrollVelocity = true;
+        [Description("Tint + glow objects whose beat lands while SV is off its 1x baseline (a visual cue for SV sections). Hyperdashes keep their red glow.")]
+        [Configurable] public bool EnableSvColor = false;
         [Description("Set constant AR if you're lazy. Also useful for testing.")]
         [Configurable] public double FakeApproachRate = 9.0;
         [Description("Ignore fake AR and use the map's real AR.")]
@@ -68,6 +70,12 @@ namespace StorybrewScripts
         [Configurable] public bool HyperDashGlow = true;
         [Description("Glow colour as hex #RRGGBB.")]
         [Configurable] public string HyperDashColor = "#FF0000";
+        [Description("Object body tint (hex #RRGGBB) for SV objects.")]
+        [Configurable] public string SvColor = "#b4f8ff";
+        [Description("Glow colour (hex #RRGGBB) for SV objects. Only fruits and big droplets glow.")]
+        [Configurable] public string SvGlowColor = "#11e7ff";
+        [Description("Tolerance (ms) for the SV tint. Catches objects on a boundary. Raise if edge objects still miss, lower if too many normal objects tint.")]
+        [Configurable] public double SvColorWindow = 10;
         [Configurable] public bool RenderFruits = true;
         [Configurable] public bool RenderDroplets = true;
         [Configurable] public bool RenderTinyDroplets = true;
@@ -140,6 +148,10 @@ namespace StorybrewScripts
                 BaseScale = baseScale,
                 ScrollVelocity = scrollVelocity,
                 EnableScrollVelocity = EnableScrollVelocity,
+                EnableSvColor = EnableSvColor,
+                SvColor = SvColor,
+                SvGlowColor = SvGlowColor,
+                SvColorWindow = SvColorWindow,
                 EnableHidden = EnableHidden,
                 EnableFadeIn = EnableFadeIn,
                 HiddenUseGameValues = HiddenUseGameValues,

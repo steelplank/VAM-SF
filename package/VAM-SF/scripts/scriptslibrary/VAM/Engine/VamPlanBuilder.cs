@@ -22,6 +22,13 @@ namespace StorybrewScripts.Vam
         public VamScrollVelocity ScrollVelocity;
         public bool EnableScrollVelocity;
 
+        // SV tint + glow: recolour an object and give it a glow when the SV multiplier at its beat
+        // is off the 1x baseline (a visual cue that scroll velocity is active here).
+        public bool EnableSvColor;
+        public string SvColor;         // object body tint
+        public string SvGlowColor;     // glow colour (independent of the body tint)
+        public double SvColorWindow;   // ms tolerance: an object counts as "on SV" if a non-1x region is within this of its beat
+
         // hidden
         public bool EnableHidden;
         public bool HiddenUseGameValues;
@@ -46,6 +53,7 @@ namespace StorybrewScripts.Vam
         public string HyperDashColor;
 
         const double OsuHyperGlowScale = 1.2, OsuHyperGlowAlpha = 0.7;
+        const double SvColorEpsilon = 1e-6;   // |mult - 1| above this counts as "SV active"
         const double OsuBananaEndScale = 0.6;
         const double OsuHiddenOffsetMul = 0.6, OsuHiddenDurationMul = 0.16;
         const double OsuHdFadeStartFrac = 0.40, OsuHdFadeWidthFrac = OsuHiddenDurationMul;
@@ -119,6 +127,26 @@ namespace StorybrewScripts.Vam
                 plan.GlowColor = ParseHex(HyperDashColor);
                 plan.GlowScale = OsuHyperGlowScale;
                 plan.GlowAlpha = OsuHyperGlowAlpha;
+            }
+
+            // SV tint + glow: when the scroll-velocity multiplier at this object's beat is off 1x,
+            // recolour it and give it a glow so the SV region reads at a glance. Applies to every
+            // type (fruit, droplet, tiny, banana). A hyperdash keeps its red glow (that signal
+            // matters more); the body still takes the SV tint either way.
+            if (EnableSvColor && EnableScrollVelocity && ScrollVelocity != null && ScrollVelocity.HasKeyframes
+                && ScrollVelocity.MaxDeviation(obj.Time, SvColorWindow) > SvColorEpsilon)
+            {
+                plan.BodyColor = ParseHex(SvColor);
+                // Glow only fruits and BIG droplets (as the hyperdash glow does); tiny droplets and
+                // bananas take the tint but no glow. A hyperdash keeps its red glow.
+                bool glowable = obj.Type == VamObjectType.Fruit || obj.Type == VamObjectType.Droplet;
+                if (glowable && !plan.DrawGlow)
+                {
+                    plan.DrawGlow = true;
+                    plan.GlowColor = ParseHex(SvGlowColor);
+                    plan.GlowScale = OsuHyperGlowScale;
+                    plan.GlowAlpha = OsuHyperGlowAlpha;
+                }
             }
 
             bool triggerDriven = EnableCatchMiss && IsDetected(obj.Type);
