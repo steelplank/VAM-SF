@@ -12,7 +12,7 @@
 
 VAM renders a pixel-accurate storyboard copy of an osu!catch map with a fake dynamic Approach Rate, fake Hidden, mania-style Scroll Velocity, and more!
 
-![status](https://img.shields.io/badge/status-alpha%20v0.30-orange)
+![status](https://img.shields.io/badge/status-alpha%20v0.31-orange)
 
 | Dynamic AR | Scroll Velocity |
 |:---:|:---:|

@@ -48,7 +48,13 @@ namespace StorybrewScripts.Vam
             double basePreempt = catchTime - spawnBase;
             if (basePreempt <= 0) return;
 
-            if (catchTime <= _firstT || spawnBase >= _lastT) return;
+            // Object catches before the timeline starts: SV is 1x there, nothing to do.
+            if (catchTime <= _firstT) return;
+            // After the last keyframe the final value is HELD forever (see SAt / MaxDeviation), so an
+            // object spawning past it must still be reshaped when that held value isn't 1x. Only skip
+            // when the held value IS 1x - otherwise a held <1 (or >1) silently snapped back to normal
+            // after ~one preempt while the SV tint kept glowing (they disagreed).
+            if (spawnBase >= _lastT && Math.Abs(_v[_v.Count - 1] - 1.0) < 1e-9) return;
 
             double x = catchKey.Value.X;
             double spawnY = spawnKey.Value.Y;

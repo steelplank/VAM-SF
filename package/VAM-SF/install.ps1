@@ -1,5 +1,5 @@
 <#
-  VAM-SF - Variable AR Modification: Storybrew Framework (osu!catch) - Installer / Manager (v0.30)
+  VAM-SF - Variable AR Modification: Storybrew Framework (osu!catch) - Installer / Manager (v0.31)
 
   Keep this whole VAM-SF folder INSIDE your storybrew project folder. It is a PERSISTENT
   toolbox: after installing, the folder stays so you can upgrade or uninstall later. It holds
@@ -20,6 +20,8 @@
                      .osu untouched). Fallback when a version renamed files.
     uninstall   full removal: VAM code + sprites + VAM-profile, and revert every .osu to its
                 original backup.
+    revert      restore ONLY the original .osu files from backups into the mapset (undo a bad publish
+                or combo mod). Leaves VAM code, sprites and VAM-profile in place; backups are kept.
     osu-mod     (re)apply the optional .osu modification (strip new-combo + white colours + add the
                 VAM tags: vam vamsf storyboard) to an existing install.
     brand-bg    bake the usage card onto a copy of a diff's background and repoint that .osu to it
@@ -36,7 +38,7 @@
                 .osu is backed up first. Best run on the COPY you upload.
 
   Parameters:
-    -Action <install|upgrade|remove-scripts|uninstall|osu-mod|brand-bg|merge-sb|publish>   run non-interactively
+    -Action <install|upgrade|remove-scripts|uninstall|revert|osu-mod|brand-bg|merge-sb|publish>   run non-interactively
     -Force              skip the confirmation prompt
     -MapsetPath <path>  override the auto-detected mapset (song) folder
     -ProjectPath <path> override the auto-detected storybrew project folder
@@ -53,7 +55,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('install','upgrade','remove-scripts','uninstall','osu-mod','brand-bg','merge-sb','publish')]
+    [ValidateSet('install','upgrade','remove-scripts','uninstall','revert','osu-mod','brand-bg','merge-sb','publish')]
     [string]$Action,
     [switch]$Force,
     [string]$MapsetPath,
@@ -97,11 +99,14 @@ function Show-Banner {
     )
 
     Write-Host ""
-    foreach ($l in $art){ Write-Host $l -ForegroundColor Cyan }
+    foreach ($l in $art){ Write-Host ("  " + $l) -ForegroundColor Magenta }
     Write-Host ""
-    Write-Host " Variable AR Modification: Storybrew Framework" -ForegroundColor DarkCyan
-    Write-Host " installer / manager   v0.30" -ForegroundColor DarkGray
-    Write-Host " -------------------------------------------------" -ForegroundColor DarkCyan
+    $title = 'Variable AR Modification : Storybrew Framework'
+    $ver   = 'v0.31'
+    $pad   = 60 - $title.Length - $ver.Length; if ($pad -lt 1){ $pad = 1 }
+    Write-Host ("  " + $title) -ForegroundColor Cyan -NoNewline
+    Write-Host ((' ' * $pad) + $ver) -ForegroundColor DarkGray
+    Write-Host ("  " + ('=' * 60)) -ForegroundColor DarkCyan
 }
 
 # ---------- file helpers (bracket-safe: mapset folders like '... [no video]') ----------
@@ -254,7 +259,6 @@ if (-not $ProjectPath){
 if (-not $ProjectPath -or -not (Test-Path -LiteralPath $ProjectPath)){
     Die "Couldn't find a storybrew project (.sbrew) above this folder.`n    Keep VAM-SF INSIDE your storybrew project, or pass -ProjectPath."
 }
-Good "project: $ProjectPath"
 
 # --- resolve the mapset folder ---
 if (-not $MapsetPath){
@@ -265,7 +269,11 @@ if (-not $MapsetPath){
     }
 }
 $mapsetOk = $MapsetPath -and (Test-Path -LiteralPath $MapsetPath)
-if ($mapsetOk){ Good "mapset:  $MapsetPath" } else { Warn "mapset not resolved yet (will ask if an action needs it)" }
+if (-not $mapsetOk){ Warn "mapset not resolved yet - will ask if an action needs it" }
+
+# osu stores the mapset path with '/'; normalise both to '\' so paths read and display consistently on Windows.
+if ($ProjectPath){ $ProjectPath = $ProjectPath -replace '/', '\' }
+if ($MapsetPath) { $MapsetPath  = $MapsetPath  -replace '/', '\' }
 
 # --- detect current state by scanning ---
 $installedEffects = @($EffectFiles | Where-Object { Test-Path -LiteralPath (Join-Path $ProjectPath $_) })
@@ -276,11 +284,17 @@ $backupCount = 0
 if (Test-Path -LiteralPath $BackupRoot){ $backupCount = @(Get-ChildItem -LiteralPath $BackupRoot -Recurse -Filter *.osu -File -ErrorAction SilentlyContinue).Count }
 
 Write-Host ""
-Write-Host "Detected:" -ForegroundColor Cyan
-Info ("- VAM code in project : " + $(if($isInstalled){"YES ($($installedEffects.Count) effect files)"}else{"no"}))
-Info ("- sprites in mapset    : " + $(if($sbInstalled){"YES"}else{"no"}))
-Info ("- VAM-profile.txt       : " + $(if($profileHere){"present"}else{"absent"}))
-Info ("- .osu backups kept     : " + $(if($backupCount){"$backupCount file(s)"}else{"none"}))
+Write-Host "  DETECTED" -ForegroundColor Cyan
+$statusStr = if ($isInstalled) {
+    $bits = @('installed', "$($installedEffects.Count) effects")
+    if ($sbInstalled){ $bits += 'sprites' }
+    if ($profileHere){ $bits += 'profile' }
+    if ($backupCount){ $bits += "$backupCount backups" }
+    $bits -join ' | '
+} else { 'not installed' }
+Write-Host ('    ' + 'project'.PadRight(11)) -ForegroundColor DarkGray -NoNewline; Write-Host $ProjectPath -ForegroundColor Gray
+Write-Host ('    ' + 'mapset'.PadRight(11))  -ForegroundColor DarkGray -NoNewline; Write-Host $(if($mapsetOk){$MapsetPath}else{'(not resolved)'}) -ForegroundColor Gray
+Write-Host ('    ' + 'status'.PadRight(11))  -ForegroundColor DarkGray -NoNewline; Write-Host $statusStr -ForegroundColor Gray
 
 # ---------- payload check ----------
 $ScriptsSrc = Join-Path $Here 'scripts'
@@ -362,7 +376,7 @@ function Do-InstallCore([bool]$isUpgrade){
 
     # state file
     $state = @{
-        version   = '0.30'
+        version   = '0.31'
         project   = $ProjectPath
         mapset    = $MapsetPath
         osu       = @($osuFiles | ForEach-Object { $_.Name })
@@ -413,6 +427,26 @@ function Do-Uninstall {
     }
     Remove-PathSafe $StateFile
     Step "Uninstalled. You can delete this VAM-SF folder now."
+}
+
+function Do-Revert {
+    Need-Mapset
+    if (-not (Test-Path -LiteralPath $BackupRoot)){ Die "No backups folder found - nothing to revert." }
+    $mapName = [System.IO.Path]::GetFileName($MapsetPath)
+    $bakDir  = Join-Path $BackupRoot $mapName
+    if (-not (Test-Path -LiteralPath $bakDir)){ Die "No backups for this mapset ($mapName)." }
+    $baks = @(Get-ChildItem -LiteralPath $bakDir -Filter *.osu -File)
+    if ($baks.Count -eq 0){ Die "No .osu backups found in $bakDir." }
+
+    Step "Restoring original .osu files from backups"
+    $restored = 0
+    foreach ($b in $baks){
+        [System.IO.File]::Copy($b.FullName, (Join-Path $MapsetPath $b.Name), $true)
+        $restored++
+    }
+    Good "$restored .osu file(s) restored from backup (backups kept)."
+    Warn "Only the .osu files were reverted - VAM code, sprites and VAM-profile.txt are untouched."
+    Info "These are the pre-VAM originals, so the storyboard flags are gone; re-run Install / Upgrade to re-enable them."
 }
 
 function Do-OsuMod {
@@ -527,6 +561,7 @@ function Invoke-MergeOsu($osu, $osbBody){
     if ($bg){ $body.Add($bg) }
     if ($breaks.Count -gt 0){ $body.Add('//Break Periods'); foreach ($b in $breaks){ $body.Add($b) } }
     foreach ($l in $osbBody){ $body.Add($l) }
+    $body.Add('')   # blank line before the next section header - osu writes one, and storybrew's parser needs it (glued [TimingPoints] drops the beat grid)
     for ($i = $ev.End - 1; $i -gt $ev.Start; $i--){ $lines.RemoveAt($i) }
     $ins = $ev.Start + 1
     foreach ($l in $body){ $lines.Insert($ins, $l); $ins++ }
@@ -652,33 +687,49 @@ function Confirm-Or-Exit($summary){
     if ($ans -notmatch '^(y|yes)$'){ Write-Host "Cancelled - nothing was changed." -ForegroundColor Yellow; exit 0 }
 }
 
+# ---------- interactive menu (data-driven: add one row below to extend) ----------
+# Grp = section header, Lbl = label, Hint = dim tag, Show = visibility, Act = -Action to run.
+function Get-MenuItems {
+    @(
+        @{ Grp='INSTALL'; Lbl='Install VAM-SF';           Hint='';            Show={ -not $script:isInstalled };  Act='install' }
+        @{ Grp='INSTALL'; Lbl='Upgrade / reinstall';      Hint='';            Show={ $script:isInstalled };       Act='upgrade' }
+        @{ Grp='PUBLISH'; Lbl='Quick publish';            Hint='';            Show={ $script:isInstalled };       Act='publish' }
+        @{ Grp='PUBLISH'; Lbl='Brand background';         Hint='';            Show={ $script:isInstalled };       Act='brand-bg' }
+        @{ Grp='PUBLISH'; Lbl='Merge storyboard';         Hint='';            Show={ $script:isInstalled };       Act='merge-sb' }
+        @{ Grp='TOOLS';   Lbl='Combo mod';                Hint='';            Show={ $script:isInstalled };       Act='osu-mod' }
+        @{ Grp='TOOLS';   Lbl='Revert .osu to originals'; Hint='';            Show={ $script:backupCount -gt 0 }; Act='revert' }
+        @{ Grp='REMOVE';  Lbl='Remove scripts';           Hint='';            Show={ $script:isInstalled };       Act='remove-scripts' }
+        @{ Grp='REMOVE';  Lbl='Full uninstall';           Hint='';            Show={ $script:isInstalled };       Act='uninstall' }
+    )
+}
+
+function Read-MenuChoice {
+    $items = @(Get-MenuItems | Where-Object { & $_.Show })
+    $map = @{}; $n = 0; $lastGrp = $null
+    foreach ($it in $items){
+        if ($it.Grp -ne $lastGrp){ Write-Host ''; Write-Host ('  ' + $it.Grp) -ForegroundColor Cyan; $lastGrp = $it.Grp }
+        $n++; $map["$n"] = $it.Act
+        Write-Host ("    [$n]  ") -ForegroundColor Gray -NoNewline
+        if ($it.Hint){
+            Write-Host $it.Lbl.PadRight(26) -ForegroundColor White -NoNewline
+            Write-Host $it.Hint -ForegroundColor Green
+        } else {
+            Write-Host $it.Lbl -ForegroundColor White
+        }
+    }
+    Write-Host ''
+    Write-Host '    [0]  ' -ForegroundColor Gray -NoNewline
+    Write-Host 'Exit'      -ForegroundColor DarkGray
+    Write-Host ''
+    Write-Host '  select > ' -ForegroundColor Cyan -NoNewline
+    $sel = Read-Host
+    if ($map.ContainsKey($sel)){ return $map[$sel] }
+    return $null
+}
+
 if (-not $Action){
-    Write-Host ""
-    Write-Host "Choose an action:" -ForegroundColor Cyan
-    if (-not $isInstalled){
-        Info "[1] Install VAM-SF"
-    } else {
-        Info "[1] Upgrade / reinstall (refresh code + sprites; keep VAM-profile and .osu)"
-        Info "[2] Remove scripts only (keep VAM-profile, sprites, .osu) - upgrade fallback"
-        Info "[3] Full uninstall (remove everything + revert .osu to originals)"
-        Info "[4] (Re)apply .osu combo mod (strip new-combo + white colours + tags)"
-        Info "[5] Quick publish  (combo strip + AR/OD 0 + brand background + inline .osb) - recommended"
-        Info "[6] Brand a diff's background with the usage card only"
-        Info "[7] Merge storyboard (.osb) into a diff's .osu only"
-    }
-    Info "[0] Exit"
-    $sel = Read-Host "  >"
-    switch ($sel){
-        '1' { $Action = if ($isInstalled){ 'upgrade' } else { 'install' } }
-        '2' { if ($isInstalled){ $Action = 'remove-scripts' } }
-        '3' { if ($isInstalled){ $Action = 'uninstall' } }
-        '4' { if ($isInstalled){ $Action = 'osu-mod'; $StripCombos = [switch]$true } }
-        '5' { if ($isInstalled){ $Action = 'publish' } }
-        '6' { if ($isInstalled){ $Action = 'brand-bg' } }
-        '7' { if ($isInstalled){ $Action = 'merge-sb' } }
-        default { Write-Host "Bye." ; exit 0 }
-    }
-    if (-not $Action){ Write-Host "Bye." ; exit 0 }
+    $Action = Read-MenuChoice
+    if (-not $Action){ Write-Host ''; Write-Host '  Bye.' -ForegroundColor DarkGray; exit 0 }
 }
 
 switch ($Action){
@@ -686,6 +737,7 @@ switch ($Action){
     'upgrade'        { Confirm-Or-Exit "About to UPGRADE: remove old VAM code, install the new payload. VAM-profile and .osu are kept."; Do-InstallCore $true }
     'remove-scripts' { Confirm-Or-Exit "About to REMOVE the VAM code only. VAM-profile, sprites and .osu are kept."; Do-RemoveScripts }
     'uninstall'      { Confirm-Or-Exit "FULL UNINSTALL: removes VAM code + sprites + VAM-profile and REVERTS every .osu to its backup."; Do-Uninstall }
+    'revert'         { Confirm-Or-Exit "REVERT: restore the original .osu files from backups into the mapset (VAM code, sprites and profile are kept; backups are kept)."; Do-Revert }
     'osu-mod'        { Confirm-Or-Exit "About to modify .osu files (strip new-combo + white colours + add tags: $($VamTags -join ', ')). Originals are backed up."; Do-OsuMod }
     'brand-bg'       { Confirm-Or-Exit "About to bake the usage card onto a copy of the diff's background and repoint that .osu. Original background + .osu backup are kept."; Do-BrandBackground }
     'merge-sb'       { Confirm-Or-Exit "PUBLISH: inline the .osb storyboard into the chosen .osu (drops video, keeps bg+breaks) and DELETE the .osb. Do this on a shipping COPY - storybrew recreates the .osb on save."; Do-MergeStoryboard }

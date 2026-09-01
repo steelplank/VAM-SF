@@ -206,6 +206,9 @@ namespace StorybrewScripts.Vam
                 }
                 return;
             }
+            // No hd keyframes anywhere (profile 'hd' column or HdKeyframes) => Hidden stays OFF even
+            // with EnableHidden on. HD activates only when keyframes exist, the same as AR and SV.
+            if (HdProfile == null || !HdProfile.HasKeyframes) return;
             double intensity = HdProfile.IntensityAt(catchTime);
             if (intensity <= 0.0) return;
             p.HdFade = true;
