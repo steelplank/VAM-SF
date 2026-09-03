@@ -63,6 +63,8 @@ Using storyboard and overlay layer, we can generate gameplay objects identical t
 
 See the full guide: **[INSTALL.md](package/VAM-SF/INSTALL.md)** - scripted and manual install, storybrew setup, managing an install, and publishing.
 
+EXTRA: see the full guide for non-technical audience (thanks trig0n for extra work): **[EZ_INSTALL.md](docs/EZ_INSTALL.md)**
+
 ## Configuring
 
 Program AR, Hidden, and Scroll Velocity over time in **`VAM-profile.txt`** - the file documents its own syntax.
