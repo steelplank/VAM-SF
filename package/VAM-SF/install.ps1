@@ -1,5 +1,5 @@
 <#
-  VAM-SF - Variable AR Modification: Storybrew Framework (osu!catch) - Installer / Manager (v0.31)
+  VAM-SF - Variable AR Modification: Storybrew Framework (osu!catch) - Installer / Manager (v0.32)
 
   Keep this whole VAM-SF folder INSIDE your storybrew project folder. It is a PERSISTENT
   toolbox: after installing, the folder stays so you can upgrade or uninstall later. It holds
@@ -22,6 +22,8 @@
                 original backup.
     revert      restore ONLY the original .osu files from backups into the mapset (undo a bad publish
                 or combo mod). Leaves VAM code, sprites and VAM-profile in place; backups are kept.
+    doctor      read-only setup check: scripts, storybrew effects + layer order + cover OSB layers, and
+                the song folder (.osu flags, sprites, background, .osb). Prints fixes; changes nothing.
     osu-mod     (re)apply the optional .osu modification (strip new-combo + white colours + add the
                 VAM tags: vam vamsf storyboard) to an existing install.
     brand-bg    bake the usage card onto a copy of a diff's background and repoint that .osu to it
@@ -38,7 +40,7 @@
                 .osu is backed up first. Best run on the COPY you upload.
 
   Parameters:
-    -Action <install|upgrade|remove-scripts|uninstall|revert|osu-mod|brand-bg|merge-sb|publish>   run non-interactively
+    -Action <install|upgrade|remove-scripts|uninstall|revert|doctor|osu-mod|brand-bg|merge-sb|publish>   run non-interactively
     -Force              skip the confirmation prompt
     -MapsetPath <path>  override the auto-detected mapset (song) folder
     -ProjectPath <path> override the auto-detected storybrew project folder
@@ -55,7 +57,7 @@
 #>
 [CmdletBinding()]
 param(
-    [ValidateSet('install','upgrade','remove-scripts','uninstall','revert','osu-mod','brand-bg','merge-sb','publish')]
+    [ValidateSet('install','upgrade','remove-scripts','uninstall','revert','doctor','osu-mod','brand-bg','merge-sb','publish')]
     [string]$Action,
     [switch]$Force,
     [string]$MapsetPath,
@@ -102,7 +104,7 @@ function Show-Banner {
     foreach ($l in $art){ Write-Host ("  " + $l) -ForegroundColor Magenta }
     Write-Host ""
     $title = 'Variable AR Modification : Storybrew Framework'
-    $ver   = 'v0.31'
+    $ver   = 'v0.32'
     $pad   = 60 - $title.Length - $ver.Length; if ($pad -lt 1){ $pad = 1 }
     Write-Host ("  " + $title) -ForegroundColor Cyan -NoNewline
     Write-Host ((' ' * $pad) + $ver) -ForegroundColor DarkGray
@@ -376,7 +378,7 @@ function Do-InstallCore([bool]$isUpgrade){
 
     # state file
     $state = @{
-        version   = '0.31'
+        version   = '0.32'
         project   = $ProjectPath
         mapset    = $MapsetPath
         osu       = @($osuFiles | ForEach-Object { $_.Name })
@@ -447,6 +449,128 @@ function Do-Revert {
     Good "$restored .osu file(s) restored from backup (backups kept)."
     Warn "Only the .osu files were reverted - VAM code, sprites and VAM-profile.txt are untouched."
     Info "These are the pre-VAM originals, so the storyboard flags are gone; re-run Install / Upgrade to re-enable them."
+}
+
+function Do-Doctor {
+    Write-Host ""
+    Write-Host "  DOCTOR - checking your VAM:SF setup (read-only, changes nothing)" -ForegroundColor Cyan
+    $script:DocFail = 0; $script:DocWarn = 0
+    function _ok  ($m)   { Write-Host "    [OK] $m" -ForegroundColor Green }
+    function _bad ($m,$f){ Write-Host "    [X]  $m" -ForegroundColor Red;    if($f){ Write-Host "         fix: $f" -ForegroundColor DarkGray }; $script:DocFail++ }
+    function _warn($m,$f){ Write-Host "    [!]  $m" -ForegroundColor Yellow; if($f){ Write-Host "         fix: $f" -ForegroundColor DarkGray }; $script:DocWarn++ }
+
+    # 1. framework code in the project
+    Write-Host ""; Write-Host "  Scripts" -ForegroundColor DarkCyan
+    foreach ($f in $EffectFiles){
+        if (Test-Path -LiteralPath (Join-Path $ProjectPath $f)){ _ok "$f present" }
+        else { _bad "$f missing from the project" "run Install / Upgrade" }
+    }
+    if (Test-Path -LiteralPath (Join-Path $ProjectPath 'scriptslibrary/VAM/CtbLoader/OsuV14BeatmapDeserializer.cs')){ _ok "scriptslibrary\VAM present" }
+    else { _bad "scriptslibrary\VAM (map loader) missing" "run Install / Upgrade" }
+    if (Test-Path -LiteralPath (Join-Path $ProjectPath $ProfileFile)){ _ok "$ProfileFile present" }
+    else { _warn "$ProfileFile not in the project root" "Install copies it; without it effects use a constant AR" }
+
+    # 2. storybrew project config (.sbrew is plain YAML)
+    Write-Host ""; Write-Host "  Storybrew effects & layers (.sbrew)" -ForegroundColor DarkCyan
+    $sbrew = Join-Path $ProjectPath '.sbrew'
+    $indexYaml = Join-Path $sbrew 'index.yaml'
+    if (-not (Test-Path -LiteralPath $indexYaml)){
+        _bad ".sbrew\index.yaml not found" "open this project in storybrew at least once"
+    } else {
+        # ordered layer GUID list from index.yaml
+        $order = New-Object System.Collections.Generic.List[string]
+        $inLayers = $false
+        foreach ($ln in (Get-Content -LiteralPath $indexYaml)){
+            if ($ln -match '^\s*Layers:\s*$'){ $inLayers = $true; continue }
+            if ($inLayers){
+                if ($ln -match '^\s*-\s*"([0-9a-fA-F]{32})"'){ $order.Add($Matches[1].ToLower()) }
+                elseif ($ln -match '^\S'){ $inLayers = $false }
+            }
+        }
+        # scan effect.*.yaml -> script name + its layers (guid, osblayer)
+        $effects = @{}
+        Get-ChildItem -LiteralPath $sbrew -Filter 'effect.*.yaml' -File -ErrorAction SilentlyContinue | ForEach-Object {
+            $sname = $null; $layers = New-Object System.Collections.Generic.List[object]
+            $inL = $false; $g = $null; $nm = $null; $osb = $null
+            foreach ($ln in (Get-Content -LiteralPath $_.FullName)){
+                if ($ln -match '^\s*Script:\s*"([^"]+)"'){ $sname = $Matches[1] }
+                if ($ln -match '^\s*Layers:\s*$'){ $inL = $true; continue }
+                if ($inL){
+                    if     ($ln -match '^\s{2}([0-9a-fA-F]{32}):\s*$'){ if($g){ $layers.Add(@{Guid=$g.ToLower();Osb=$osb;Name=$nm}) }; $g=$Matches[1]; $nm=$null; $osb=$null }
+                    elseif ($ln -match '^\s+Name:\s*"([^"]*)"'){ $nm = $Matches[1] }
+                    elseif ($ln -match '^\s+OsbLayer:\s*(\w+)'){ $osb = $Matches[1] }
+                    elseif ($ln -match '^\S'){ if($g){ $layers.Add(@{Guid=$g.ToLower();Osb=$osb;Name=$nm}); $g=$null }; $inL=$false }
+                }
+            }
+            if ($g){ $layers.Add(@{Guid=$g.ToLower();Osb=$osb;Name=$nm}) }
+            if ($sname){ if(-not $effects.ContainsKey($sname)){ $effects[$sname]=New-Object System.Collections.Generic.List[object] }; foreach($l in $layers){ $effects[$sname].Add($l) } }
+        }
+        $gEff = $effects['VAM_Generator']; $cEff = $effects['VAM_Cover']; $dEff = $effects['VAM_Countdown']
+        if ($gEff){ _ok "VAM_Generator effect added" } else { _bad "VAM_Generator effect not added in storybrew" "Effects tab -> add VAM_Generator" }
+        if ($cEff){ _ok "VAM_Cover effect added" }     else { _bad "VAM_Cover effect not added in storybrew" "Effects tab -> add VAM_Cover" }
+        if ($dEff){ _ok "VAM_Countdown effect added" }  else { _warn "VAM_Countdown effect not added (optional)" "add it if you want the countdown" }
+        if ($cEff){
+            $osbSet = @($cEff | ForEach-Object { $_.Osb })
+            if (($osbSet -contains 'Overlay') -and ($osbSet -contains 'Background')){ _ok "VAM_Cover OSB layers set (Overlay + Background)" }
+            else { _bad "VAM_Cover OSB layers wrong (have: $($osbSet -join ', '))" "top layer -> Overlay, bottom layer -> Background" }
+        }
+        if ($gEff){
+            $gl = @($gEff | Where-Object { $_.Osb -eq 'Overlay' } | Select-Object -First 1)
+            if ($gl -and $order.Contains($gl.Guid)){
+                _ok "VAM_Generator layer is in the layer list"
+                if ($cEff){
+                    $ct = @($cEff | Where-Object { $_.Osb -eq 'Overlay' } | Select-Object -First 1)
+                    if ($ct -and $order.Contains($ct.Guid)){
+                        if ($order.IndexOf($gl.Guid) -gt $order.IndexOf($ct.Guid)){ _ok "VAM_Generator is below the cover (correct)" }
+                        else { _warn "VAM_Generator sits above the cover in the layer list" "move VAM_Generator to the very bottom of the Layers list" }
+                    }
+                }
+            } elseif ($gl){ _warn "VAM_Generator layer not in the ordered list yet" "open/save the project in storybrew once" }
+        }
+    }
+
+    # 3. mapset (song folder)
+    Write-Host ""; Write-Host "  Song folder" -ForegroundColor DarkCyan
+    if (-not $mapsetOk){
+        _warn "mapset folder not resolved - skipping song-folder checks" "pass -MapsetPath, or open the project in storybrew"
+    } else {
+        $need = @('black.png','fruit-apple.png','fruit-drop.png')
+        $miss = @($need | Where-Object { -not (Test-Path -LiteralPath (Join-Path $MapsetPath (Join-Path $SpriteRel $_))) })
+        if ($miss.Count -eq 0){ _ok "core sprites present in sb\vam" } else { _bad "sprites missing in sb\vam: $($miss -join ', ')" "run Install / Upgrade" }
+        $cm = @(@('count1.png','count2.png','count3.png','go.png','ready.png') | Where-Object { -not (Test-Path -LiteralPath (Join-Path $MapsetPath (Join-Path $SpriteRel $_))) })
+        if ($cm.Count -gt 0){ _warn "countdown sprites missing: $($cm -join ', ')" "run Install / Upgrade if you use the countdown" }
+
+        $osuFiles = @(Get-ChildItem -LiteralPath $MapsetPath -Filter *.osu -File -ErrorAction SilentlyContinue)
+        if ($osuFiles.Count -eq 0){ _bad "no .osu files in the mapset" "point -MapsetPath at the song folder" }
+        else {
+            $wsBad=@(); $skBad=@(); $bgBad=@()
+            foreach ($osu in $osuFiles){
+                $lines = Read-Lines $osu.FullName
+                $sec = Get-Section $lines '[General]'
+                $ws=$false; $sk=$false
+                if ($sec.Start -ge 0){ for($i=$sec.Start+1;$i -lt $sec.End;$i++){
+                    if ($lines[$i] -match '^\s*WidescreenStoryboard\s*:\s*1'){ $ws=$true }
+                    if ($lines[$i] -match '^\s*UseSkinSprites\s*:\s*1'){ $sk=$true }
+                } }
+                if (-not $ws){ $wsBad += $osu.Name }
+                if (-not $sk){ $skBad += $osu.Name }
+                $bg = Get-OsuBackground $lines
+                if ($bg -and -not (Test-Path -LiteralPath (Join-Path $MapsetPath $bg.Name))){ $bgBad += "$($osu.Name) -> $($bg.Name)" }
+            }
+            if ($wsBad.Count -eq 0){ _ok "WidescreenStoryboard: 1 on all diffs" } else { _bad "WidescreenStoryboard not set: $($wsBad -join ', ')" "run Install / Upgrade" }
+            if ($skBad.Count -eq 0){ _ok "UseSkinSprites: 1 on all diffs" }        else { _bad "UseSkinSprites not set: $($skBad -join ', ')" "run Install / Upgrade" }
+            if ($bgBad.Count -gt 0){ _warn "background file missing for: $($bgBad -join '; ')" "check the background filename inside the .osu" }
+        }
+        $osbF = @(Get-ChildItem -LiteralPath $MapsetPath -Filter *.osb -File -ErrorAction SilentlyContinue)
+        if ($osbF.Count -gt 0){ _ok ".osb storyboard present ($($osbF[0].Name))" } else { _warn "no .osb in the mapset" "save/export the storyboard in storybrew (it builds the .osb)" }
+    }
+
+    # summary
+    Write-Host ""
+    if     ($script:DocFail -eq 0 -and $script:DocWarn -eq 0){ Write-Host "  All good - setup looks correct." -ForegroundColor Green }
+    elseif ($script:DocFail -eq 0){ Write-Host "  Looks OK, with $($script:DocWarn) warning(s) to review." -ForegroundColor Yellow }
+    else   { Write-Host "  $($script:DocFail) problem(s), $($script:DocWarn) warning(s) - see the fixes above." -ForegroundColor Red }
+    Write-Host "  (read-only - nothing was changed)" -ForegroundColor DarkGray
 }
 
 function Do-OsuMod {
@@ -696,6 +820,7 @@ function Get-MenuItems {
         @{ Grp='PUBLISH'; Lbl='Quick publish';            Hint='';            Show={ $script:isInstalled };       Act='publish' }
         @{ Grp='PUBLISH'; Lbl='Brand background';         Hint='';            Show={ $script:isInstalled };       Act='brand-bg' }
         @{ Grp='PUBLISH'; Lbl='Merge storyboard';         Hint='';            Show={ $script:isInstalled };       Act='merge-sb' }
+        @{ Grp='TOOLS';   Lbl='Diagnose setup (doctor)';  Hint='';            Show={ $true };                     Act='doctor' }
         @{ Grp='TOOLS';   Lbl='Combo mod';                Hint='';            Show={ $script:isInstalled };       Act='osu-mod' }
         @{ Grp='TOOLS';   Lbl='Revert .osu to originals'; Hint='';            Show={ $script:backupCount -gt 0 }; Act='revert' }
         @{ Grp='REMOVE';  Lbl='Remove scripts';           Hint='';            Show={ $script:isInstalled };       Act='remove-scripts' }
@@ -738,6 +863,7 @@ switch ($Action){
     'remove-scripts' { Confirm-Or-Exit "About to REMOVE the VAM code only. VAM-profile, sprites and .osu are kept."; Do-RemoveScripts }
     'uninstall'      { Confirm-Or-Exit "FULL UNINSTALL: removes VAM code + sprites + VAM-profile and REVERTS every .osu to its backup."; Do-Uninstall }
     'revert'         { Confirm-Or-Exit "REVERT: restore the original .osu files from backups into the mapset (VAM code, sprites and profile are kept; backups are kept)."; Do-Revert }
+    'doctor'         { Do-Doctor }
     'osu-mod'        { Confirm-Or-Exit "About to modify .osu files (strip new-combo + white colours + add tags: $($VamTags -join ', ')). Originals are backed up."; Do-OsuMod }
     'brand-bg'       { Confirm-Or-Exit "About to bake the usage card onto a copy of the diff's background and repoint that .osu. Original background + .osu backup are kept."; Do-BrandBackground }
     'merge-sb'       { Confirm-Or-Exit "PUBLISH: inline the .osb storyboard into the chosen .osu (drops video, keeps bg+breaks) and DELETE the .osb. Do this on a shipping COPY - storybrew recreates the .osb on save."; Do-MergeStoryboard }

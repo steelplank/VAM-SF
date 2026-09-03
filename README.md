@@ -12,7 +12,7 @@
 
 VAM renders a pixel-accurate storyboard copy of an osu!catch map with a fake dynamic Approach Rate, fake Hidden, mania-style Scroll Velocity, and more!
 
-![status](https://img.shields.io/badge/status-alpha%20v0.31-orange)
+![status](https://img.shields.io/badge/status-alpha%20v0.32-orange)
 
 | Dynamic AR | Scroll Velocity |
 |:---:|:---:|
@@ -37,9 +37,9 @@ Using storyboard and overlay layer, we can generate gameplay objects identical t
 - **Installator and helper** - easy install script including modifying the .osu file to make your life easier!
 - **Recreation of osu! RNG model** - full recreation of osu!catch droplets and banana randomization!
 - **Dynamic AR** - control and change AR during gameplay using keyframes with easing! Exceed normal osu! AR values and torment people with maps on AR 12!
-- **Fake Hidden** - add hidden to the mix with adjustable HD strength!
-- **Fade-In** - why bother with lane cover when you can have fade-in! Mix FI with HD together and make fake mania-like FL!
 - **Scroll Velocity** - mania-style SV: rush, slow, or freeze the whole field!
+- **Fake Hidden** - add hidden to the mix with adjustable HD strength!
+- **Fade-In** - why bother with lane cover when you can have fade-in! You can mix FI and HD together!
 - **Player Skin Support** - with this enabled, skin elements are dynamically used! Rotation for square skins is fully supported!
 - **Miss Simulator** - fake "osu-like" simulation of a miss where the object will fall below the platter. (fruits-only feature)
 - **Countdown** - overlay can and will cover osu! built-in countdown so we have our own implementation!
@@ -68,6 +68,65 @@ See the full guide: **[INSTALL.md](package/VAM-SF/INSTALL.md)** - scripted and m
 Program AR, Hidden, and Scroll Velocity over time in **`VAM-profile.txt`** - the file documents its own syntax.
 
 For more detailed overview of all features, including creating your own mods, see **[GUIDE.md](docs/GUIDE.md)**
+
+## FAQ
+
+<details>
+<summary><b>The objects are invisible in storybrew!</b></summary>
+
+That's expected when **`UseSkinSprites`** is on - osu!'s skin sprites don't render inside storybrew. Edit effects in storybrew with `UseSkinSprites` set to off, then flip it back on when you're exporting the final version of the storyboard.
+
+</details>
+
+<details>
+<summary><b>The objects drift out of line with gameplay / fruits fall past the platter on my monitor.</b></summary>
+
+Check your resolution's aspect ratio. VAM lines up on **16:9** and **4:3**, but **not on 5:4** (e.g. 1280×1024) or anything narrower than 4:3.
+
+If you *only* ever play or record on 5:4, you can compensate by hand: set **VAM_Generator**'s **`CenterX`** from `320` to `300` and rebuild. That realigns 5:4 but it then breaks 16:9 and 4:3.
+
+</details>
+
+<details>
+<summary><b>My fruits look wobbly as they fall</b></summary>
+
+Your skin fruit elements might not be perfectly centered. Each fruit gets a fixed tilt at spawn and never actually spins during the fall, so it's an optical illusion, not motion (osu! stable does the exact same thing). If it bothers you, turn off "Rotate Objects" in basic settings inside of the VAM_Generator effect.
+
+</details>
+
+<details>
+<summary><b>My storyboard isn't working in-game / the objects don't appear.</b></summary>
+
+Run the installer's **Diagnose setup (doctor)** option (`install.ps1` → Tools → Diagnose, or `-Action doctor`). It checks for the most common issues and prints the fix. The usual culprits are:
+
+- The `.osu` flags **`WidescreenStoryboard: 1`** and **`UseSkinSprites: 1`** aren't set (re-run Install / Upgrade).
+- **VAM_Generator** isn't at the **very bottom** of the effect list, so the objects draw on top of the cover.
+- The cover's OSB layers are wrong - the top region must be **Overlay**, the bottom region **Background**.
+
+</details>
+
+<details>
+<summary><b>I added HD / FI / SV keyframes but nothing changes.</b></summary>
+
+Each feature needs its master toggle on in **VAM_Generator**: **`EnableHidden`** for `hd`, **`EnableFadeIn`** for `fi`, **`EnableScrollVelocity`** for the `[sv]` section.
+
+</details>
+
+<details>
+<summary><b>Storyboard not working for multiple difficulties</b></summary>
+
+Storybrew exports to .osb either for the entire set or per each difficulty in the set. If you want only one difficulty to have the storyboard, you should use the `Quick Publish` option in the installer script to comine .osb with .osu file of the selected difficulty.
+
+Highly recommend working on one difficulty, exporting .osb for the entire set, then combining that with .osu before moving on to the next difficulty. But maybe you can have a more efficient workflow.
+
+</details>
+
+<details>
+<summary><b>The installer errors with "System.Drawing isn't available", or can't find my project.</b></summary>
+
+Run it with **Windows PowerShell** - `System.Drawing` isn't in other shells. And keep the whole **`VAM-SF`** folder **inside your storybrew project** (the folder with the `.sbrew` file), or pass `-ProjectPath "<project folder>"`.
+
+</details>
 
 ## Credits
 

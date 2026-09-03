@@ -32,6 +32,7 @@ namespace StorybrewScripts.Vam
         public bool HdFade;
         public double HdStart, HdEnd;   // fade-OUT window (ms): peak -> peak*HdRemain
         public double HdRemain = 1.0;   // fraction of peak left at the catch
+        public double HdStartFrac, HdEndFrac;   // fall-height fractions; the ms window above is derived from these on the FINAL (post-SV) path so the fade tracks screen height, not clock time
 
         // fake mania Fade In: the object is invisible at spawn and fades IN over a band near the
         // top of the fall (0 -> peak over [FiStart, FiEnd]), fully visible below it. Composes with
@@ -39,6 +40,7 @@ namespace StorybrewScripts.Vam
         // reading window out of the middle of the fall.
         public bool FadeIn;
         public double FiStart, FiEnd;   // fade-in window (ms): 0 -> peak
+        public double FiStartFrac, FiEndFrac;   // fall-height fractions (see HD note); derived to ms on the final path
 
         // ending
         public bool TriggerDriven;      // miss default + HitSound catch trigger
@@ -58,6 +60,24 @@ namespace StorybrewScripts.Vam
 
         // catch point = last path keyframe (miss continues straight down from here)
         public Vec2 CatchPoint { get { return Position.Last.Value; } }
+
+        // Time the fall passes a given storyboard Y, read off the FINAL (post-SV) path so fades track
+        // screen height, not clock time. Fall is monotonic; flat SV-freeze segments are skipped.
+        public double TimeAtY(double y)
+        {
+            var keys = Position.Keys;
+            if (keys.Count == 0) return SpawnTime;
+            if (keys.Count == 1) return keys[0].Time;
+            if (y <= keys[0].Value.Y) return keys[0].Time;
+            if (y >= keys[keys.Count - 1].Value.Y) return keys[keys.Count - 1].Time;
+            for (int i = 0; i < keys.Count - 1; i++)
+            {
+                double y0 = keys[i].Value.Y, y1 = keys[i + 1].Value.Y;
+                if (y1 > y0 && y >= y0 && y <= y1)
+                    return keys[i].Time + (keys[i + 1].Time - keys[i].Time) * ((y - y0) / (y1 - y0));
+            }
+            return keys[keys.Count - 1].Time;
+        }
 
         // Move the spawn keyframe; catch stays put, so a straight fall becomes a diagonal.
         public void ShiftSpawn(double dx, double dy)

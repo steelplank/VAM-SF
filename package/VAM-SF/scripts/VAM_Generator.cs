@@ -122,6 +122,9 @@ namespace StorybrewScripts
                         System.Collections.Generic.List<string> loopErrors;
                         profileText = VamLoopExpander.Expand(profileText, map, out loopErrors);   // expand loop..end blocks first
                         foreach (var er in loopErrors) Log("VAM-profile loop " + er);
+                        System.Collections.Generic.List<string> holdErrors;
+                        profileText = VamSvHoldExpander.Expand(profileText, map, out holdErrors);  // expand [sv] `hold` lines into keyframes
+                        foreach (var er in holdErrors) Log("VAM-profile " + er);
                         profile = new VamProfile(profileText, FakeApproachRate, EnableEasing, Easing);
                         foreach (var er in profile.Errors) Log("VAM-profile " + er);
                     }

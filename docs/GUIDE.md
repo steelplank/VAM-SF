@@ -103,7 +103,7 @@ The mirror of Hidden, borrowed from osu!mania: objects are invisible at the **to
 |---------|---------|--------------|
 | `EnableFadeIn` | true | Master switch. Must be on if you use any `fi` keyframes. |
 
-Strength is `fi=0..10` in the profile. Fade In composes with Hidden: Fade In hides the top, Hidden hides the bottom, so `fi=5` + `hd=5` leaves a readable band in the middle - a genuine fake-mania reading window. An object is always fully shown before it lands.
+Strength is `fi=0..10` in the profile. Fade In composes with Hidden: Fade In hides the top, Hidden hides the bottom, so `fi=5` + `hd=5` leaves a readable band in the middle - a genuine fake-mania reading window. Higher `fi` reveals lower and narrows that window - by `fi=10` the reveal reaches into `hd=5`'s fade and the window closes almost entirely, for a very tight read. An object is always fully shown before it lands.
 
 ### Scroll Velocity
 
@@ -334,6 +334,20 @@ end
 `start` snaps to the osu! beat grid; `beat-fraction` can be `1/2`, `3/4`, `2/3`, a decimal, etc., and uses the map's BPM at `start`.
 Only **whole cycles** are emitted, so the loop always ends on the last value - pick an `end` with a little room rather than hitting it exactly.
 Haven't tested this loop functionality a lot and osu! rounding makes it extra difficult so report any issues if you find any.
+
+### Hold (mania hold-then-snap)
+
+A one-liner for the classic mania "hold, then snap" scroll: every object creeps down slowly, then makes a rapid final drop onto its beat. It lives in `[sv]`:
+
+```
+[sv]
+hold 95801 1/16 0.1 10 -> 111747
+#    start  div  slow fast   end
+```
+
+`start`/`end` bound the window, `beat-fraction` (`1/16` here) is the grid the creep steps on, and the two numbers are the slow (creep) and fast (snap) speeds. The `->` is optional, and SV returns to `1x` at `end` automatically.
+
+It replaces a long hand loop of `0.1`s ending in one fast value - and it's smarter about it. `hold` looks at where the objects actually are and auto-fits each gap: a 1-beat gap gets a short hold, a 2-beat gap a longer one, and it re-anchors across BPM changes (great for maps like deltaMAX where the rhythm keeps shifting). Every object gets its snap on the beat-division it lands in, so nothing ever crawls into the catcher - which also means dense streams have no room to hold and end up mostly snapping, while sparse rhythms give the big hold-then-drop.
 
 ### Common mistakes
 

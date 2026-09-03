@@ -38,9 +38,9 @@ namespace StorybrewScripts.Vam
                     continue;
                 }
 
-                double start, end, stepMs, offset, beatLength;
+                double start, end, frac;
                 string err;
-                if (!TryParseLoopHeader(lines[i], map, out start, out end, out stepMs, out offset, out beatLength, out err))
+                if (!TryParseLoopHeader(lines[i], out start, out end, out frac, out err))
                 {
                     errors.Add($"loop (line {i + 1}): {err}; block ignored");
                     i = SkipBody(lines, i);   // swallow through 'end' (or up to a section/EOF) so the body isn't parsed as keyframes
@@ -74,22 +74,10 @@ namespace StorybrewScripts.Vam
                     continue;
                 }
 
-                // Grid anchor: snap the requested start to the nearest real beat-fraction position, so
-                // the emitted times sit exactly where the editor would place them.
-                double k0 = Math.Floor((start - offset) / stepMs + 0.5);
-                double baseT = offset + k0 * stepMs;
-
-                // Collect every grid time in [start-snapped, end].
-                var times = new List<long>();
-                bool capped = false;
-                for (int n = 0; ; n++)
-                {
-                    if (n > MaxKeyframesPerLoop) { capped = true; break; }
-                    double exact = baseT + n * stepMs;
-                    long t = (long)Math.Floor(exact + 0.5);   // osu!-style round half up
-                    if (t > end) break;
-                    if (t >= 0) times.Add(t);
-                }
+                // Beat grid that follows osu!'s editor: re-anchor on every red line inside the span and
+                // use each section's own beat length, so a loop over a BPM change still lands on the beat.
+                bool capped;
+                var times = BuildBeatGrid(map, start, end, frac, MaxKeyframesPerLoop, out capped);
                 if (capped)
                     errors.Add($"loop (line {i + 1}): exceeded {MaxKeyframesPerLoop} keyframes; truncated");
 
@@ -142,10 +130,10 @@ namespace StorybrewScripts.Vam
             return lines.Length - 1;
         }
 
-        private static bool TryParseLoopHeader(string raw, VamBeatmap map, out double start, out double end,
-            out double stepMs, out double offset, out double beatLength, out string err)
+        private static bool TryParseLoopHeader(string raw, out double start, out double end,
+            out double frac, out string err)
         {
-            start = end = stepMs = offset = beatLength = 0; err = null;
+            start = end = frac = 0; err = null;
 
             var line = StripComment(raw).Trim();
             var toks = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
@@ -157,23 +145,68 @@ namespace StorybrewScripts.Vam
             if (args.Count != 3) { err = "expected 'loop <start> <beat-fraction> -> <end>'"; return false; }
             if (!double.TryParse(args[0], NumberStyles.Any, CultureInfo.InvariantCulture, out start))
             { err = $"bad start time '{args[0]}'"; return false; }
-            double frac;
             if (!TryParseFraction(args[1], out frac)) { err = $"bad beat fraction '{args[1]}'"; return false; }
             if (frac <= 0) { err = $"beat fraction must be > 0 ('{args[1]}')"; return false; }
             if (!double.TryParse(args[2], NumberStyles.Any, CultureInfo.InvariantCulture, out end))
             { err = $"bad end time '{args[2]}'"; return false; }
             if (end < start) { err = $"end ({args[2]}) is before start ({args[0]})"; return false; }
-
-            var timing = map != null ? map.TimingAt(start) : new VamTiming(0, 500.0);
-            offset = timing.Time;
-            beatLength = timing.BeatLength > 0 ? timing.BeatLength : 500.0;
-            stepMs = frac * beatLength;
-            if (stepMs <= 0) { err = "computed step is not positive"; return false; }
             return true;
         }
 
+        // Beat-fraction grid that follows osu!'s editor across BPM changes: within each uninherited
+        // (red) section the grid is anchored on the red line at frac*beatLength spacing, and it
+        // re-anchors on the next red line - so a loop spanning a BPM change stays on the real beats.
+        // 'start' is snapped to the opening section's grid; times round HALF UP like the editor.
+        internal static List<long> BuildBeatGrid(VamBeatmap map, double start, double end, double frac,
+                                                int cap, out bool capped)
+        {
+            capped = false;
+            var times = new List<long>();
+
+            var sections = new List<VamTiming>();
+            if (map != null && map.Timings != null)
+                foreach (var r in map.Timings) if (r.BeatLength > 0) sections.Add(r);
+            sections.Sort((a, b) => a.Time.CompareTo(b.Time));
+            if (sections.Count == 0)
+                sections.Add(new VamTiming(0, (map != null && map.BeatLengthAtStart > 0) ? map.BeatLengthAtStart : 500.0));
+
+            int idx0 = 0;
+            for (int s = 0; s < sections.Count; s++) { if (sections[s].Time <= start) idx0 = s; else break; }
+
+            for (int s = idx0; s < sections.Count; s++)
+            {
+                double step = frac * sections[s].BeatLength;
+                if (step <= 0) break;
+                double anchor = sections[s].Time;
+                double secEnd = (s + 1 < sections.Count) ? sections[s + 1].Time : double.PositiveInfinity;
+
+                // opening section snaps 'start' onto its grid (k0); later sections start on the red line
+                // (k=0). Times are computed as anchor + k*step each step - never accumulated - so long
+                // loops don't drift from floating-point round-off.
+                long k = (s == idx0) ? (long)Math.Floor((start - anchor) / step + 0.5) : 0;
+                for (; ; k++)
+                {
+                    if (times.Count > cap) { capped = true; return times; }
+                    double exact = anchor + k * step;
+                    if (exact >= secEnd || exact > end) break;
+                    long ms = (long)Math.Floor(exact + 0.5);   // osu!-style round half up
+                    if (ms >= 0)
+                    {
+                        // Merge a keyframe that rounds to within 2ms of the previous one - the last beat
+                        // of a section can round a hair before the next red line, which is the same beat;
+                        // keep the later (red-aligned) time.
+                        if (times.Count > 0 && ms - times[times.Count - 1] <= 2) times[times.Count - 1] = ms;
+                        else times.Add(ms);
+                    }
+                }
+
+                if (double.IsPositiveInfinity(secEnd) || secEnd > end) break;
+            }
+            return times;
+        }
+
         // "a/b" (any real a, b) or a bare decimal. Returns the fraction of a beat.
-        private static bool TryParseFraction(string s, out double frac)
+        internal static bool TryParseFraction(string s, out double frac)
         {
             frac = 0;
             if (string.IsNullOrEmpty(s)) return false;

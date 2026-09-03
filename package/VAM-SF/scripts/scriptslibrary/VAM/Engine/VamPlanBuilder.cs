@@ -60,9 +60,10 @@ namespace StorybrewScripts.Vam
         const double ExitY = 540.0;
 
         // Fade In geometry (fraction of the fall). Reveal COMPLETES at FiEndFrac; invisible above it,
-        // fading in over a band of FiWidthFrac. fi=5 reveals by 0.25 - above HD's 0.40 fade-out start,
-        // so fi=5 + hd=5 leaves a reading window. Higher fi reveals later: FiEndFrac += (fi-5)*FiPerLevel.
-        const double FiEndFracAt5 = 0.25, FiWidthFrac = OsuHiddenDurationMul, FiPerLevel = 0.02;
+        // fading in over a band of FiWidthFrac. fi=5 reveals by 0.25 (above HD's 0.40 fade-out start, so
+        // fi=5 + hd=5 leaves a reading window); higher fi reveals later, and by fi=10 the reveal reaches
+        // into HD=5's fade so the window closes. FiEndFrac += (fi-5)*FiPerLevel.
+        const double FiEndFracAt5 = 0.25, FiWidthFrac = OsuHiddenDurationMul, FiPerLevel = 0.04;
         const double FiMaxEndFrac = 0.90; // never hide the catch; fully revealed before landing
 
         readonly Dictionary<VamObject, double> trigStart = new Dictionary<VamObject, double>();
@@ -163,6 +164,10 @@ namespace StorybrewScripts.Vam
             if (EnableScrollVelocity && ScrollVelocity != null && ScrollVelocity.HasKeyframes)
                 ScrollVelocity.Reshape(plan);
 
+            // Fades are positional: map the HD/FI height fractions to times on the FINAL path, so with
+            // SV changing the fall speed the fade still sits at the same screen Y it would at SV=1.
+            ApplyFadeTimes(plan);
+
             return plan;
         }
 
@@ -200,8 +205,8 @@ namespace StorybrewScripts.Vam
                 {
                     double sf, ef; ScaleToFractions(scale, out sf, out ef);
                     p.HdFade = true;
-                    p.HdStart = spawnTime + preempt * sf;
-                    p.HdEnd = spawnTime + preempt * ef;
+                    p.HdStartFrac = sf;
+                    p.HdEndFrac = ef;
                     p.HdRemain = 0.0;
                 }
                 return;
@@ -214,15 +219,15 @@ namespace StorybrewScripts.Vam
             p.HdFade = true;
             if (HiddenUseGameValues)
             {
-                p.HdStart = catchTime - preempt * OsuHiddenOffsetMul;
-                p.HdEnd = p.HdStart + preempt * OsuHiddenDurationMul;
+                p.HdStartFrac = 1.0 - OsuHiddenOffsetMul;                 // 0.40 of the fall
+                p.HdEndFrac = p.HdStartFrac + OsuHiddenDurationMul;       // 0.56
             }
             else
             {
                 double fs = Clamp01(HiddenFadeStart), fe = Clamp01(HiddenFadeEnd);
                 if (fe <= fs) fe = Math.Min(1.0, fs + 0.05);
-                p.HdStart = spawnTime + preempt * fs;
-                p.HdEnd = spawnTime + preempt * fe;
+                p.HdStartFrac = fs;
+                p.HdEndFrac = fe;
             }
             p.HdRemain = 1.0 - intensity;
         }
@@ -251,8 +256,26 @@ namespace StorybrewScripts.Vam
             if (startFrac < 0.0) startFrac = 0.0;
 
             p.FadeIn = true;
-            p.FiStart = spawnTime + preempt * startFrac;
-            p.FiEnd = spawnTime + preempt * endFrac;
+            p.FiStartFrac = startFrac;
+            p.FiEndFrac = endFrac;
+        }
+
+        // Resolve HD/FI fall-height fractions to storyboard times on the final (post-SV) path.
+        static void ApplyFadeTimes(VamPlan p)
+        {
+            if (p.Position.Count < 2) return;
+            double spawnY = p.Position.First.Value.Y;
+            double span = p.Position.Last.Value.Y - spawnY;
+            if (p.HdFade)
+            {
+                p.HdStart = p.TimeAtY(spawnY + p.HdStartFrac * span);
+                p.HdEnd = p.TimeAtY(spawnY + p.HdEndFrac * span);
+            }
+            if (p.FadeIn)
+            {
+                p.FiStart = p.TimeAtY(spawnY + p.FiStartFrac * span);
+                p.FiEnd = p.TimeAtY(spawnY + p.FiEndFrac * span);
+            }
         }
 
         // Only fruits raise storyboard HitSound triggers.

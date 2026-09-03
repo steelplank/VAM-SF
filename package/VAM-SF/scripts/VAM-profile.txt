@@ -26,6 +26,8 @@
 #     1                         ...here: 0.5, 1, 0.5, 1, ...
 #     end                       close the block
 #
+#     hold 60000 1/16 0.1 10 -> 64000   mania hold-then-snap: crawl 0.1, snap 10
+#
 # --- AR ----------------------------------------------------------------------
 #
 #     time:ar     eased between keyframes; held before the first & after the last.
@@ -66,8 +68,9 @@
 #
 #     Works WITH Hidden: Fade In hides the top, Hidden hides the bottom, so the
 #     two leave a visible band in the middle.  At the defaults (fi=5 + hd=5) you
-#     get a clean window - visible from ~1/4 to ~2/5 of the fall - and even fi=10
-#     still clears hd=5's fade, so the window never fully closes at sane settings.
+#     get a clean window - visible from ~1/4 to ~2/5 of the fall - and pushing fi
+#     higher narrows it: by fi=10 the reveal reaches into hd=5's fade so the
+#     window closes almost completely, for a very tight read.
 #     Decimals ok. Ramps with AR's easing/scope. The object is always fully shown
 #     before it lands (Fade In never hides the catch itself).
 #
@@ -101,8 +104,9 @@
 #
 #     start           ms of the FIRST keyframe (snapped onto osu!'s beat grid).
 #     beat-fraction   spacing as a fraction of a beat: 1/2, 3/4, 2/3, 5/7, or a
-#                     plain decimal (0.5). Uses the map's red-line BPM at 'start',
-#                     so it lands exactly where the editor would snap it.
+#                     plain decimal (0.5). Follows the map's red-line BPM, re-anchoring
+#                     on each red line it crosses, so it lands exactly where the editor
+#                     would snap it - even across BPM changes.
 #     end             ms; keyframes run up to AND INCLUDING this time (an END
 #                     TIME, not a count). The '->' is optional.
 #     values          the part AFTER 'time:' - "0.5", "1", "9:sine", "-:hd=3".
@@ -115,7 +119,31 @@
 #     it exactly.
 #
 #     Times match osu!'s editor rounding exactly, so a loop reproduces hand-placed
-#     notes tick for tick. A red line inside the span does not re-anchor it.
+#     notes tick for tick. A red line inside the span RE-ANCHORS the grid to it, so a
+#     loop that crosses a BPM change keeps snapping to the real beats.
+#
+# --- HOLD  (mania-style "hold then snap" SV, in one line) --------------------
+#
+#     hold <start> <beat-fraction> <slow> <fast> -> <end>
+#
+#     The classic mania hold: every object creeps down at <slow>, then SNAPS the
+#     last stretch at <fast>, still landing exactly on its beat. Instead of hand-
+#     writing a long loop of <slow> keyframes with one <fast> at the end, 'hold'
+#     scans the objects in the window and builds it for you - and auto-fits each
+#     gap: a 1-beat gap gets a short hold, a 2-beat gap a longer one, re-anchoring
+#     across BPM changes. Put it under the [sv] header.
+#
+#     start           ms of the first keyframe (snapped onto osu!'s beat grid).
+#     beat-fraction   the grid the creep steps on: 1/16, 1/8, a decimal, etc.
+#                     Finer = smoother creep and a tighter snap.
+#     slow            fall speed while holding   (e.g. 0.1, a slow crawl).
+#     fast            fall speed of the snap     (e.g. 10, a rapid drop).
+#     end             ms the hold covers objects up to. '->' is optional. SV
+#                     returns to x1 at 'end' automatically.
+#
+#     Every catchable object (fruit, droplet, banana) snaps on the division it
+#     lands in, so nothing ever crawls into the catcher. Dense streams have no
+#     room to hold and mostly snap; sparse rhythms give the big hold-then-drop.
 #
 # --- EXAMPLES  (copy under WRITE BELOW, then delete the leading '#') ----------
 #
@@ -151,5 +179,9 @@
 #     0.5
 #     end
 #     64000:1
+#
+#     ~SV: mania hold-then-snap on 1/16 from 95.8s to 111.7s (crawl, then drop)~
+#     [sv]
+#     hold 95801 1/16 0.1 10 -> 111747
 #
 # ============================  WRITE BELOW  ==================================
