@@ -1,5 +1,5 @@
 site_name: "VAM:SF"
-site_description: "Variable AR Modification - a storyboard framework for osu!catch"
+site_description: "Variable AR Modification: storyboard framework for osu!catch"
 # Set these to your repo/pages URLs before deploying:
 site_url: "https://steelplank.github.io/VAM-SF/"
 repo_url: "https://github.com/steelplank/VAM-SF"

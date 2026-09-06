@@ -14,3 +14,4 @@ docs/TODO.md
 # python venv + mkdocs build output
 .venv/
 site/
+docs-serve.bat
