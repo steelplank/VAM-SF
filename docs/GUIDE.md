@@ -165,7 +165,7 @@ For a map you plan on releasing, I highly recommend on exporting it with `UseSki
 | `UseComboColors` | false | Tint objects with the map's combo colours. **Experimental** - off by default. |
 | `BananaColor` | `#FFD23E` | Banana colour (hex `#RRGGBB`). |
 
-**Recommended:** for publishing, most maps combine `UseComboColors = false` with the combo-strip / white-colours `.osu` mod so objects render on their intended colours.
+**Recommended:** for publishing, most maps combine `UseComboColors = false` with the white-colours `.osu` mod so objects render on their intended colours.
 
 > Some players use colours in their skins, some are using pure white. Unfortunately I cannot extract that information so the second best thing is to use pure white and not bother with combo colours.
 
@@ -449,7 +449,7 @@ double amount = cfg.GetDouble("amount", 20);        // in Apply
 The publish step (`install.ps1` Quick Publish, or the separate brand/merge actions) does four things, and two of them lean on settings above:
 
 - **AR & OD set to 0.** Intentional - it forces players onto the storyboard rather than the (now hidden) real objects. This is a `.osu` edit, independent of the effect settings.
-- **Combo strip + white colours.** Pairs with keeping `UseComboColors` **off** so the beam coming from the platter is in the same color (in this case, white).
+- **White combo colours.** Pairs with keeping `UseComboColors` **off** so the beam coming from the platter is in the same color (in this case, white). New combos are left intact - stripping them makes caught fruit pile up on the platter under Hidden and hurts performance.
 - **Background branding.** Stamps your usage card onto a copy of the background (`<bg>-vam.jpg`) and points only the published diff at it. If `VAM_Cover`'s `SpritePath` is set to `background`** then the branded card would bake into the in-game cover.
   Keep the cover on the default black tile (or point it at the *original* background filename) so the card only ever shows in song-select.
 - **Storyboard inlined, `.osb` deleted.** Makes the published diff self-contained. Run publishing on the **copy you upload**, never your working project - storybrew rebuilds the `.osb` on its next save.

@@ -36,7 +36,7 @@ Install does the following:
 
 ```powershell
 .\install.ps1 -Action install                 # install / upgrade
-.\install.ps1 -Action install -StripCombos     # also strip new-combo + whiten colours
+.\install.ps1 -Action install -WhitenColours   # also whiten combo colours + add tags
 .\install.ps1 -Action install -Force           # skip the confirmation prompt
 ```
 
@@ -87,7 +87,7 @@ When VAM:SF is already installed, `install.bat` shows a grouped menu. The number
 **TOOLS**
 
 - **Diagnose setup (doctor)** - read-only check of the whole setup; prints what's wrong and how to fix it. Safe to run any time.
-- **Combo mod** - strip new-combo, whiten colours, and add the VAM tags (`vam vamsf storyboard`). Originals are backed up first. (`-Action osu-mod`)
+- **Whiten colours** - whiten the combo colours and add the VAM tags (`vam vamsf storyboard`). New combos are left intact (stripping them hurts performance under Hidden). Originals are backed up first. (`-Action osu-mod`)
 - **Revert .osu to originals** - restore the `.osu` files from backups. Keeps the VAM code, sprites, and profile.
 
 **REMOVE**
@@ -112,7 +112,7 @@ Otherwise, if you performed manual install, simply replace old scripts in the st
 When the map is finished, use **Quick publish** (recommended) - the one-shot release step.
 On the difficulty you pick it will:
 
-1. Strip new-combo, whiten the colours, and add the VAM tags.
+1. Whiten the combo colours and add the VAM tags.
 2. Set **AR** and **OD** to **0**.
 3. Brand the background: cover-crop it to 16:9 the way osu displays it, stamp the usage card, and save it as `<bg>-vam.jpg`, then point that diff at the branded background.
 4. Inline the storyboard: merge the `.osb` into the `.osu`'s `[Events]` (keeps background + breaks, drops the video) so the diff is self-contained.

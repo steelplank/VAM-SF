@@ -12,7 +12,7 @@
 
 VAM renders a pixel-accurate storyboard copy of an osu!catch map with a fake dynamic Approach Rate, fake Hidden, mania-style Scroll Velocity, and more!
 
-![version](https://img.shields.io/badge/version-1.0.0-blue)
+![version](https://img.shields.io/badge/version-1.0.1-blue)
 [![docs](https://img.shields.io/badge/docs-steelplank.github.io-ec4899)](https://steelplank.github.io/VAM-SF/)
 
 ### Full documentation: **[steelplank.github.io/VAM-SF](https://steelplank.github.io/VAM-SF/)**

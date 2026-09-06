@@ -60,7 +60,7 @@ When you're done setting up keyframes and other stuff in `VAM-profile.txt` then 
 
 Done testing and you want to share your wonderful creation online? You can upload it the way it is or you can use our `Quick Publish` script to make it super simple. What this script does is:
 1. Sets AR and OD of the diff to 0 (so you cannot cheat and play without storyboard enabled)
-2. Removes all nc's (new combo), whitens the combo colors, and adds the VAM tags
+2. Whitens the combo colors and adds the VAM tags
 3. Brands map background in the bottom left corner with *STORYBOARD ON, BACKGROUND DIM 0%, PLAY WITH HIDDEN*
 > If you set cover's `SpritePath` to `background`, point it at the original background filename instead, so the card isn't baked into the cover.
 4. Combines .osb with .osu of the selected diff - that's to prevent cheating. It will also delete .osb from the mapset folder.

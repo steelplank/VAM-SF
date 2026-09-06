@@ -1,5 +1,5 @@
 <#
-  VAM-SF - Variable AR Modification: Storybrew Framework (osu!catch) - Installer / Manager (v1.0.0)
+  VAM-SF - Variable AR Modification: Storybrew Framework (osu!catch) - Installer / Manager (v1.0.1)
 
   Keep this whole VAM-SF folder INSIDE your storybrew project folder. It is a PERSISTENT
   toolbox: after installing, the folder stays so you can upgrade or uninstall later. It holds
@@ -12,7 +12,7 @@
 
   Actions (also selectable from the menu):
     install     copy scripts into the project + sprites into the mapset, patch .osu flags,
-                optionally strip new-combo/whiten colours. If already installed it upgrades in
+                optionally whiten combo colours + add tags. If already installed it upgrades in
                 place (see 'upgrade').
     upgrade     remove the old VAM code files, then install the new ones. Keeps VAM-profile.txt,
                 keeps .osu files, keeps backups. Use when moving to a new version.
@@ -24,8 +24,8 @@
                 or combo mod). Leaves VAM code, sprites and VAM-profile in place; backups are kept.
     doctor      read-only setup check: scripts, storybrew effects + layer order + cover OSB layers, and
                 the song folder (.osu flags, sprites, background, .osb). Prints fixes; changes nothing.
-    osu-mod     (re)apply the optional .osu modification (strip new-combo + white colours + add the
-                VAM tags: vam vamsf storyboard) to an existing install.
+    osu-mod     (re)apply the optional .osu modification (whiten combo colours + add the
+                VAM tags: vam vamsf storyboard) to an existing install. New combos are left intact.
     brand-bg    bake the usage card onto a copy of a diff's background and repoint that .osu to it
                 (song-select branding). Cover-crops the original to 16:9 the same way osu displays
                 it, stamps assets\usage-card.png on top, saves <bg>-vam.jpg, and leaves the original
@@ -35,7 +35,7 @@
                 storyboard, and DELETES the .osb so it isn't loaded twice. Run it on the COPY you're
                 shipping - storybrew re-creates the .osb on its next save.
     publish     the one-shot release step for a finished diff (RECOMMENDED). On the chosen diff it:
-                strips new-combo + whitens colours + adds the VAM tags, sets AR & OD to 0, brands the
+                whitens combo colours + adds the VAM tags, sets AR & OD to 0, brands the
                 background with the usage card, inlines the storyboard, and deletes the .osb. Every
                 .osu is backed up first. Best run on the COPY you upload.
 
@@ -44,7 +44,7 @@
     -Force              skip the confirmation prompt
     -MapsetPath <path>  override the auto-detected mapset (song) folder
     -ProjectPath <path> override the auto-detected storybrew project folder
-    -StripCombos        (install/osu-mod) apply the .osu combo strip + white colours
+    -WhitenColours      (install/osu-mod) whiten combo colours + add tags (alias: -StripCombos)
     -NoWidescreenFlag   do NOT set WidescreenStoryboard: 1
     -NoSkinFlag         do NOT set UseSkinSprites: 1
     -CardPath <path>    (brand-bg) the usage-card PNG; default assets\usage-card.png. Author it on a
@@ -62,7 +62,8 @@ param(
     [switch]$Force,
     [string]$MapsetPath,
     [string]$ProjectPath,
-    [switch]$StripCombos,
+    [Alias('StripCombos')]
+    [switch]$WhitenColours,
     [switch]$NoWidescreenFlag,
     [switch]$NoSkinFlag,
     [string]$CardPath,      # brand-bg: the usage-card PNG (full 1920x1080 transparent frame)
@@ -104,7 +105,7 @@ function Show-Banner {
     foreach ($l in $art){ Write-Host ("  " + $l) -ForegroundColor Magenta }
     Write-Host ""
     $title = 'Variable AR Modification : Storybrew Framework'
-    $ver   = 'v1.0.0'
+    $ver   = 'v1.0.1'
     $pad   = 60 - $title.Length - $ver.Length; if ($pad -lt 1){ $pad = 1 }
     Write-Host ("  " + $title) -ForegroundColor Cyan -NoNewline
     Write-Host ((' ' * $pad) + $ver) -ForegroundColor DarkGray
@@ -158,25 +159,11 @@ function Get-Section([System.Collections.Generic.List[string]]$lines, [string]$n
     return @{ Start = $start; End = $end }
 }
 
-# Strip new-combo (bit 4) + colour-skip bits (0x70) from every hit object, and force
-# [Colours] to exactly two pure-white combos. Reversible: caller backs up the original first.
-function Edit-OsuStripCombos([System.Collections.Generic.List[string]]$lines){
-    # 1) hit objects: keep only circle(1)/slider(2)/spinner(8) type bits.
-    $ho = Get-Section $lines '[HitObjects]'
-    if ($ho.Start -ge 0){
-        for ($i = $ho.Start + 1; $i -lt $ho.End; $i++){
-            $line = $lines[$i]
-            if ($line.Trim().Length -eq 0){ continue }
-            $f = $line.Split(',')
-            if ($f.Count -lt 5){ continue }
-            $t = 0
-            if (-not [int]::TryParse($f[3], [ref]$t)){ continue }
-            $f[3] = ([string]($t -band 0x0B))
-            $lines[$i] = ($f -join ',')
-        }
-    }
-
-    # 2) [Colours]: drop existing ComboN lines, keep any slider overrides, set two white combos.
+# Force [Colours] to exactly two pure-white combos so every object reads white. New combos are
+# LEFT INTACT on purpose: stripping them makes caught fruit pile up on the platter (never cleared
+# by a new combo), which tanks performance under the Hidden mod. Reversible: caller backs up first.
+function Edit-OsuWhitenColours([System.Collections.Generic.List[string]]$lines){
+    # [Colours]: drop existing ComboN lines, keep any slider overrides, set two white combos.
     $white1 = 'Combo1 : 255,255,255'
     $white2 = 'Combo2 : 255,255,255'
     $col = Get-Section $lines '[Colours]'
@@ -331,7 +318,7 @@ function Patch-Osus([array]$osuFiles, [bool]$doFlags, [bool]$doCombos){
             if (-not $NoWidescreenFlag){ Set-OsuFlag $lines 'WidescreenStoryboard' '1' }
             if (-not $NoSkinFlag){ Set-OsuFlag $lines 'UseSkinSprites' '1' }
         }
-        if ($doCombos){ Edit-OsuStripCombos $lines; Add-OsuTags $lines $VamTags }
+        if ($doCombos){ Edit-OsuWhitenColours $lines; Add-OsuTags $lines $VamTags }
         Write-Lines $osu.FullName $lines
     }
 }
@@ -373,16 +360,16 @@ function Do-InstallCore([bool]$isUpgrade){
     Good "$($osuFiles.Count) original .osu saved -> $bdst"
 
     Step "Patching .osu files"
-    Patch-Osus $osuFiles $true $StripCombos.IsPresent
-    Good ("flags set" + $(if($StripCombos){"; new-combo stripped + colours whitened"}else{""}))
+    Patch-Osus $osuFiles $true $WhitenColours.IsPresent
+    Good ("flags set" + $(if($WhitenColours){"; combo colours whitened + tags added"}else{""}))
 
     # state file
     $state = @{
-        version   = '1.0.0'
+        version   = '1.0.1'
         project   = $ProjectPath
         mapset    = $MapsetPath
         osu       = @($osuFiles | ForEach-Object { $_.Name })
-        combosMod = $StripCombos.IsPresent
+        combosMod = $WhitenColours.IsPresent
     }
     ($state | ConvertTo-Json) | Set-Content -LiteralPath $StateFile -Encoding UTF8
 
@@ -577,10 +564,10 @@ function Do-OsuMod {
     Need-Mapset
     $osuFiles = @(Get-ChildItem -LiteralPath $MapsetPath -Filter *.osu -File)
     if ($osuFiles.Count -eq 0){ Die "No .osu files in the mapset." }
-    Step "Applying .osu combo mod (strip new-combo + white colours + tags)"
+    Step "Applying .osu colour mod (whiten combo colours + tags)"
     Backup-Osus $osuFiles | Out-Null
     Patch-Osus $osuFiles $false $true
-    Good "$($osuFiles.Count) .osu modified: new-combo stripped, colours whitened, tags added ($($VamTags -join ', ')). Originals safe in backups."
+    Good "$($osuFiles.Count) .osu modified: combo colours whitened, tags added ($($VamTags -join ', ')). New combos left intact. Originals safe in backups."
 }
 
 # ---- shared publish primitives ----
@@ -779,14 +766,14 @@ function Do-QuickPublish {
     Step "Backing up .osu files (into this folder\backups)"
     Backup-Osus $osuFiles | Out-Null
 
-    Step "1/3  Combos + colours + difficulty + tags"
+    Step "1/3  Colours + difficulty + tags"
     $lines = Read-Lines $target.FullName
-    Edit-OsuStripCombos $lines
+    Edit-OsuWhitenColours $lines
     Add-OsuTags $lines $VamTags
     Set-OsuDifficulty $lines 'ApproachRate' '0'
     Set-OsuDifficulty $lines 'OverallDifficulty' '0'
     Write-Lines $target.FullName $lines
-    Good "$($target.Name): new-combo stripped, colours whitened, AR & OD set to 0, tags added ($($VamTags -join ', '))"
+    Good "$($target.Name): combo colours whitened, AR & OD set to 0, tags added ($($VamTags -join ', '))"
 
     Step "2/3  Brand background"
     $jpegCodec  = [System.Drawing.Imaging.ImageCodecInfo]::GetImageEncoders() | Where-Object { $_.FormatID -eq [System.Drawing.Imaging.ImageFormat]::Jpeg.Guid } | Select-Object -First 1
@@ -825,7 +812,7 @@ function Get-MenuItems {
         @{ Grp='PUBLISH'; Lbl='Brand background';         Hint='';            Show={ $script:isInstalled };       Act='brand-bg' }
         @{ Grp='PUBLISH'; Lbl='Merge storyboard';         Hint='';            Show={ $script:isInstalled };       Act='merge-sb' }
         @{ Grp='TOOLS';   Lbl='Diagnose setup (doctor)';  Hint='';            Show={ $true };                     Act='doctor' }
-        @{ Grp='TOOLS';   Lbl='Combo mod';                Hint='';            Show={ $script:isInstalled };       Act='osu-mod' }
+        @{ Grp='TOOLS';   Lbl='Whiten colours';           Hint='';            Show={ $script:isInstalled };       Act='osu-mod' }
         @{ Grp='TOOLS';   Lbl='Revert .osu to originals'; Hint='';            Show={ $script:backupCount -gt 0 }; Act='revert' }
         @{ Grp='REMOVE';  Lbl='Remove scripts';           Hint='';            Show={ $script:isInstalled };       Act='remove-scripts' }
         @{ Grp='REMOVE';  Lbl='Full uninstall';           Hint='';            Show={ $script:isInstalled };       Act='uninstall' }
@@ -868,10 +855,10 @@ switch ($Action){
     'uninstall'      { Confirm-Or-Exit "FULL UNINSTALL: removes VAM code + sprites + VAM-profile and REVERTS every .osu to its backup."; Do-Uninstall }
     'revert'         { Confirm-Or-Exit "REVERT: restore the original .osu files from backups into the mapset (VAM code, sprites and profile are kept; backups are kept)."; Do-Revert }
     'doctor'         { Do-Doctor }
-    'osu-mod'        { Confirm-Or-Exit "About to modify .osu files (strip new-combo + white colours + add tags: $($VamTags -join ', ')). Originals are backed up."; Do-OsuMod }
+    'osu-mod'        { Confirm-Or-Exit "About to modify .osu files (whiten combo colours + add tags: $($VamTags -join ', ')). New combos are left intact. Originals are backed up."; Do-OsuMod }
     'brand-bg'       { Confirm-Or-Exit "About to bake the usage card onto a copy of the diff's background and repoint that .osu. Original background + .osu backup are kept."; Do-BrandBackground }
     'merge-sb'       { Confirm-Or-Exit "PUBLISH: inline the .osb storyboard into the chosen .osu (drops video, keeps bg+breaks) and DELETE the .osb. Do this on a shipping COPY - storybrew recreates the .osb on save."; Do-MergeStoryboard }
-    'publish'        { Confirm-Or-Exit "QUICK PUBLISH one diff: strip new-combo + white colours, set AR & OD to 0, brand the background with the usage card, inline the storyboard and DELETE the .osb. Backs up every .osu first; best run on the COPY you upload."; Do-QuickPublish }
+    'publish'        { Confirm-Or-Exit "QUICK PUBLISH one diff: whiten combo colours, set AR & OD to 0, brand the background with the usage card, inline the storyboard and DELETE the .osb. Backs up every .osu first; best run on the COPY you upload."; Do-QuickPublish }
 }
 
 Write-Host ""
