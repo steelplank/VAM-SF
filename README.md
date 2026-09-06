@@ -56,7 +56,7 @@ Using storyboard and overlay layer, we can generate gameplay objects identical t
 - **Fake Hidden** - add hidden to the mix with adjustable HD strength!
 - **Fade-In** - why bother with lane cover when you can have fade-in! You can mix FI and HD together!
 - **Player Skin Support** - with this enabled, skin elements are dynamically used! Rotation for square skins is fully supported!
-- **Miss Simulator** - fake "osu-like" simulation of a miss where the object will fall below the platter. (fruits-only feature)
+- **Miss Simulator** - fake "osu-like" simulation of a miss where the object will fall below the platter. (fruits-only feature) - **WARNING: Due to osu! storyboard triggers bug, this feature will tank your ms over time! **NOT** recommended to use on longer maps or maps going for tournaments!
 - **Countdown** - overlay can and will cover osu! built-in countdown so we have our own implementation!
 - **Cover with background support** - you should always use cover together with the generator but nobody said it has to be pure black.
 - **Map Combo Colors** - an option to use map combo colors. (experimental)
