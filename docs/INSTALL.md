@@ -6,8 +6,9 @@ VAM:SF ships as a **persistent toolbox folder** (`VAM-SF/`) that also acts as it
 
 ## What you need
 
+- latest version of [**VAM:SF**](https://github.com/steelplank/VAM-SF/releases/latest)
 - **osu!** and a mapset with at least one `.osu` difficulty to storyboard.
-- **storybrew**, with a project already pointed at that mapset (the project folder contains `.sbrew`).
+- [**storybrew**](https://github.com/Damnae/storybrew/releases/latest), with a project already pointed at that mapset (the project folder contains `.sbrew`).
 - **Windows PowerShell** to run `install.ps1`. The scripted parts use the built-in `System.Drawing`, so no extra installs.
 
 ---
@@ -71,19 +72,30 @@ After installing, open the project in storybrew and enter `Effects` tab, then:
 
 ## 4. Managing an install
 
-When VAM:SF is already installed, the menu offers:
+When VAM:SF is already installed, `install.bat` shows a grouped menu. The numbers are assigned to whatever options are available at the time, so pick them **by name**:
 
-| Menu | Action | What it does |
-|------|--------|--------------|
-| 1 | Upgrade / reinstall | Refresh code + sprites. Keeps `VAM-profile.txt` and `.osu`. |
-| 2 | Remove scripts only | Remove the VAM code. Keeps profile, sprites, `.osu`. |
-| 3 | Full uninstall | Remove code + sprites + profile, and revert every `.osu` from backup. |
-| 4 | Combo mod | Strip new-combo, whiten colours, add the VAM tags. |
-| 5 | Quick publish | See step 5 below. |
-| 6 | Brand background | See step 5 below. |
-| 7 | Merge storyboard | See step 5 below. |
+**INSTALL**
 
-Combo mod / `-Action osu-mod` sets the map's objects to no-combo with two white combo colours and adds the tags `vam vamsf storyboard`. Originals are backed up first.
+- **Upgrade / reinstall** - refresh code + sprites. Keeps `VAM-profile.txt` and `.osu`.
+
+**PUBLISH** (see step 6)
+
+- **Quick publish** - the one-shot release step.
+- **Brand background** - stamp the usage card onto a diff's background.
+- **Merge storyboard** - inline the `.osb` into a diff's `.osu`.
+
+**TOOLS**
+
+- **Diagnose setup (doctor)** - read-only check of the whole setup; prints what's wrong and how to fix it. Safe to run any time.
+- **Combo mod** - strip new-combo, whiten colours, and add the VAM tags (`vam vamsf storyboard`). Originals are backed up first. (`-Action osu-mod`)
+- **Revert .osu to originals** - restore the `.osu` files from backups. Keeps the VAM code, sprites, and profile.
+
+**REMOVE**
+
+- **Remove scripts** - remove the VAM code only. Keeps profile, sprites, `.osu`.
+- **Full uninstall** - remove code + sprites + profile, and revert every `.osu` from backup.
+
+Every option is also available non-interactively via `-Action` (see the list under step 2).
 
 ---
 
@@ -97,7 +109,7 @@ Otherwise, if you performed manual install, simply replace old scripts in the st
 
 ## 6. Publishing a diff
 
-When the map is finished, use **Quick publish** (menu **5**, recommended) - the one-shot release step.
+When the map is finished, use **Quick publish** (recommended) - the one-shot release step.
 On the difficulty you pick it will:
 
 1. Strip new-combo, whiten the colours, and add the VAM tags.
@@ -111,7 +123,7 @@ Every `.osu` is backed up first. **Run this on the copy you're uploading, not yo
 Requirements and pieces:
 
 - The cover stays clean automatically (its default is a black tile, so gameplay is unaffected and the card only shows in song-select). If you ever set `VAM_Cover`'s `SpritePath` to `background`, point it at the original background filename instead so the card isn't baked into the cover.
-- The steps are also available separately: **Brand background** (menu 6) and **Merge storyboard** (menu 7). Command-line: `-Action publish|brand-bg|merge-sb`, with `-PublishDiff`, `-BrandDiff`, `-MergeDiff` to target a difficulty by name, and `-JpegQuality <1-100>`.
+- The steps are also available separately: **Brand background** and **Merge storyboard**. Command-line: `-Action publish|brand-bg|merge-sb`, with `-PublishDiff`, `-BrandDiff`, `-MergeDiff` to target a difficulty by name, and `-JpegQuality <1-100>`.
 
 ---
 

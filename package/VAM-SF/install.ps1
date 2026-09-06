@@ -672,25 +672,29 @@ function Invoke-MergeOsu($osu, $osbBody){
     $ev = Get-Section $lines '[Events]'
     if ($ev.Start -lt 0){ Warn "$($osu.Name): no [Events] section - skipped."; return $false }
     $bg = $null
-    $breaks = New-Object System.Collections.Generic.List[string]
+    $breaks  = New-Object System.Collections.Generic.List[string]
+    $samples = New-Object System.Collections.Generic.List[string]   # hand-placed storyboard hitsounds (Sample/5)
     for ($i = $ev.Start + 1; $i -lt $ev.End; $i++){
         $t = $lines[$i].Trim()
         if ($t.Length -eq 0 -or $t.StartsWith('//')){ continue }
         $first = ($t -split ',')[0].Trim()
         if ($first -match '^(0|Background)$'){ if (-not $bg){ $bg = $t } }
         elseif ($first -match '^(2|Break)$'){ $breaks.Add($t) }
+        elseif ($first -match '^(5|Sample)$'){ $samples.Add($t) }
     }
     $body = New-Object System.Collections.Generic.List[string]
     $body.Add('//Background and Video events')
     if ($bg){ $body.Add($bg) }
     if ($breaks.Count -gt 0){ $body.Add('//Break Periods'); foreach ($b in $breaks){ $body.Add($b) } }
     foreach ($l in $osbBody){ $body.Add($l) }
+    if ($samples.Count -gt 0){ $body.Add('//Storyboard Sound Samples'); foreach ($s in $samples){ $body.Add($s) } }
     $body.Add('')   # blank line before the next section header - osu writes one, and storybrew's parser needs it (glued [TimingPoints] drops the beat grid)
     for ($i = $ev.End - 1; $i -gt $ev.Start; $i--){ $lines.RemoveAt($i) }
     $ins = $ev.Start + 1
     foreach ($l in $body){ $lines.Insert($ins, $l); $ins++ }
     Write-Lines $osu.FullName $lines
-    Good "$($osu.Name): storyboard inlined ($($osbBody.Count) line(s)); video dropped, bg + $($breaks.Count) break(s) kept"
+    $smsg = if ($samples.Count -gt 0){ ", $($samples.Count) sound sample(s)" } else { "" }
+    Good "$($osu.Name): storyboard inlined ($($osbBody.Count) line(s)); video dropped, bg + $($breaks.Count) break(s)$smsg kept"
     return $true
 }
 

@@ -21,7 +21,7 @@ namespace StorybrewScripts
         [Group("Basic settings:")]
         [Description("Use the player's SKIN objects instead of the bundled PNGs. Requires 'UseSkinSprites: 1' in the .osu [General]. Objects WILL NOT RENDER in storybrew.")]
         [Configurable] public bool UseSkinSprites = false;
-        [Description("Uses map combo colors for the objects. Not well tested - might be a bit buggy.")]
+        [Description("Uses map combo colors for the objects. Experimental - off by default.")]
         [Configurable] public bool UseComboColors = false;
         [Description("My best attempt at detecting misses and drawing them during gameplay. Only fruits are detectable.")]
         [Configurable] public bool EnableCatchMiss = true;

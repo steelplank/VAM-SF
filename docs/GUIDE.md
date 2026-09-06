@@ -1,7 +1,7 @@
 # VAM:SF - Advanced Guide
 
 Advanced guide going in-depth into everything past the install: what each effect setting does, how to write `VAM-profile.txt`, how to write your own mod, and how the storybrew layers fit together.
-For installing and publishing, see [INSTALL.md](../package/VAM-SF/INSTALL.md); for the profile's own quick syntax, the top of `VAM-profile.txt` documents itself. This guide is the deeper reference.
+For installing and publishing, see [INSTALL.md](INSTALL.md); for the profile's own quick syntax, the top of `VAM-profile.txt` documents itself. This guide is the deeper reference.
 
 > Every setting below is a field on one of the three effects. In storybrew you reach them from the **Effects** tab: click the cog next to the effect. Defaults are given as `(default: X)` - the defaults already produce a working, osu-faithful result, so change only what you need.
 
@@ -36,6 +36,7 @@ The illusion only works if these render in the right order. Remember that storyb
 - **VAM_Cover** produces two pieces - its top region goes on the **Overlay** OSB layer, its bottom region on the **Background** OSB layer.
 
 In short, they should look something like this in the `Layers` tab:
+
 | Layers | Type |
 |--------|------|
 | VAM_Cover (Background) | Background |
@@ -122,8 +123,6 @@ It holds each value until the next line and holds the last forever, so **always 
 
 **Recommended:** Follow your heart when it comes to using both SV and SV color. I prefer having colors off but this was added after feedback from testers. Either way, hyperdashes always keep their red glow.
 
-> It might look weird when you have a very long custom SV section or you end with value different than 1. This is a limitation of my engine - will work on it in the future.
-
 ### Miss simulation
 
 An "osu-like" fake miss: when the plate wouldn't have caught a fruit, it keeps falling past the platter instead of vanishing.
@@ -160,7 +159,7 @@ For a map you plan on releasing, I highly recommend on exporting it with `UseSki
 
 | Setting | Default | What it does |
 |---------|---------|--------------|
-| `UseComboColors` | false | Tint objects with the map's combo colours. **Work in progress - not well tested, may be buggy.** |
+| `UseComboColors` | false | Tint objects with the map's combo colours. **Experimental** - off by default. |
 | `BananaColor` | `#FFD23E` | Banana colour (hex `#RRGGBB`). |
 
 **Recommended:** for publishing, most maps combine `UseComboColors = false` with the combo-strip / white-colours `.osu` mod so objects render on their intended colours.
@@ -253,6 +252,8 @@ Redraws osu!'s pre-map countdown so it shows on top of the cover.
 The file documents its own syntax at the top; this section is the "how to actually use it" companion.
 The profile holds three things on one timeline: **AR/Hidden/Fade-In** keyframes (top level), a **`[sv]`** section, and any **`[mod:*]`** blocks.
 Write your keyframes under the `WRITE BELOW` line at the bottom.
+
+> For a field-by-field reference of every command and flag, see the [profile reference](PROFILE.md). For complete, copy-paste blocks you can drop straight in, see the [examples page](EXAMPLES.md).
 
 ### AR keyframes
 
@@ -352,7 +353,7 @@ It replaces a long hand loop of `0.1`s ending in one fast value - and it's smart
 ### Common mistakes
 
 - **`hd`/`fi` keyframes but the master toggle is off.** `EnableHidden` / `EnableFadeIn` must be on.
-- **SV section that doesn't return to `1`.** The last value holds forever but it breaks due to engine limitations. It might look funky. Make sure to always end SV sections with 1.
+- **Forgetting an SV section holds its last value.** The final value stays in force for the rest of the map - that's intentional, so you *can* hold a speed as a gimmick. If you just want normal speed back afterwards, end the section with `1`.
 - **Putting `[sv]` or `loop` lines in the AR block.** AR keyframes are top-level only; a section header ends the AR block.
 - **Expecting a partial loop cycle.** A 2-value loop over 5 slots gives `A B A B`, not `A B A B A`.
 
@@ -452,4 +453,4 @@ The publish step (`install.ps1` Quick Publish, or the separate brand/merge actio
 
 > **IMPORTANT:** I really recommend combining .osu and .osb together as this is the only way to make cheating impossible. osu! **does not** verify the integrity of .osb files during score submission - you can easily replace the storyboard with whatever you want and it will be submitted without any issues. Same applies to replays - they will work even if you change .osb after.
 
-See [INSTALL.md](../package/VAM-SF/INSTALL.md) section 6 for the step-by-step publish flow.
+See [INSTALL.md](INSTALL.md) section 6 for the step-by-step publish flow.

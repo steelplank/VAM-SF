@@ -1,187 +1,37 @@
 # =============================================================================
-#   VAM:SF profile  -  AR / Hidden / Scroll Velocity  on one timeline
+#   VAM:SF profile  -  AR / Hidden / Fade-In / Scroll Velocity  on one timeline
 # =============================================================================
 #
 #   One keyframe per line.  time = milliseconds (osu! editor timeline).
-#   '#' starts a comment.  Uncomment an example, or write your own, under
-#   WRITE BELOW at the bottom.  Read by the VAM_Generator effect.
+#   '#' starts a comment.  Write your keyframes under WRITE BELOW at the bottom.
+#   Read by the VAM_Generator effect.
 #
-# --- AT A GLANCE -------------------------------------------------------------
+#   >> FULL SYNTAX GUIDE (all flags, the hd/fi scales, loops, hold, examples):
+#      https://steelplank.github.io/VAM-SF/PROFILE/
+#
+# --- CHEAT SHEET -------------------------------------------------------------
 #
 #     0:9                AR 9 from the start
 #     45000:10           ease to AR 10 by 45s
-#     60000:10:after     SNAP to 10 (no ease)
-#     60000:9:sinein     ease in with a named curve
-#     60000:9:hd=5       add fake Hidden   (0 off | 5 normal | 10 hardest)
-#     95000:-:hd=0       Hidden only, leave AR unchanged
-#     60000:9:fi=5       add fake Fade In  (invisible up top, fades in lower)
-#     60000:9:hd=5:fi=5  Hidden + Fade In on one line -> a middle reading window
+#     60000:10:after     snap to 10 (no ease)
+#     60000:9:sinein     ease in with a named curve  (sine / quad / cubic, +in/out)
+#     60000:9:hd=5       fake Hidden      (0 off | 5 normal | 10 hardest)
+#     95000:-:hd=0       Hidden only, leave AR unchanged  ('-' keeps the AR)
+#     60000:9:fi=5       fake Fade-In     (invisible up top, fades in lower)
+#     60000:9:hd=5:fi=5  Hidden + Fade-In -> a middle reading window
 #
 #     [sv]               start the Scroll Velocity section
-#     60000:6            x6 fall speed   (1 normal | <1 slow | 0 freeze)
-#     61000:1            always end back at x1
+#     60000:6            x6 fall speed    (1 normal | <1 slow | 0 freeze)
+#     61000:1            stepped; the last value HOLDS, so END ON :1
 #
-#     loop 60000 1/2 -> 64000   repeat a pattern every 1/2 beat until 64000ms
-#     0.5                       values cycle, one per beat-fraction...
-#     1                         ...here: 0.5, 1, 0.5, 1, ...
-#     end                       close the block
-#
-#     hold 60000 1/16 0.1 10 -> 64000   mania hold-then-snap: crawl 0.1, snap 10
-#
-# --- AR ----------------------------------------------------------------------
-#
-#     time:ar     eased between keyframes; held before the first & after the last.
-#
-#     Flags (after the AR, any order):   time:ar:flag:flag
-#     easing    linear/none, sine, sinein, sineout, quad(in/out), cubic(in/out)
-#               default = the effect's Easing setting (SineInOut)
-#     after     snap INTO this keyframe    (a sudden change)
-#     before    snap OUT of this keyframe
-#     hd=N      fake Hidden (see below)
-#     fi=N      fake Fade In (see below)
-#
-# --- HIDDEN ------------------------------------------------------------------
-#
-#     hd=0..10   (needs EnableHidden, on by default).  Keeps osu!'s exact fade
-#     width and just slides WHERE it happens, about 8% of the fall per step:
-#
-#     hd=0       off, fully visible
-#     hd=false   ^
-#     hd=1-4     fade lower -> vanishes later
-#     hd=5       osu!'s normal Hidden (same as a bare "hd")
-#     hd=6-9     fade higher -> vanishes sooner
-#     hd=10      objects are fully hidden as they appear
-#
-#     Decimals ok (hd=6.5). Ramps with AR's easing/scope.
-#
-# --- FADE IN -----------------------------------------------------------------
-#
-#     fi=0..10   (needs EnableFadeIn, on by default).  osu!mania's Fade In: the
-#     object is INVISIBLE at the top of the fall and fades IN lower down - the
-#     mirror of Hidden.  The number sets how far it stays hidden:
-#
-#     fi=0       off, appears normally at the top
-#     fi=false   ^
-#     fi=1-4     revealed higher (easier)
-#     fi=5       normal Fade In (same as a bare "fi"); revealed by ~1/4 down
-#     fi=6-10    revealed lower (harder)
-#
-#     Works WITH Hidden: Fade In hides the top, Hidden hides the bottom, so the
-#     two leave a visible band in the middle.  At the defaults (fi=5 + hd=5) you
-#     get a clean window - visible from ~1/4 to ~2/5 of the fall - and pushing fi
-#     higher narrows it: by fi=10 the reveal reaches into hd=5's fade so the
-#     window closes almost completely, for a very tight read.
-#     Decimals ok. Ramps with AR's easing/scope. The object is always fully shown
-#     before it lands (Fade In never hides the catch itself).
-#
-# --- SCROLL VELOCITY ---------------------------------------------------------
-#
-#     Its own [sv] header, then  time:multiplier.
-#     A x-multiplier on the AR fall speed: reshapes how fast EVERY object falls,
-#     yet each still lands on its exact beat.
-#
-#     1 normal    |    >1 faster    |    <1 slower    |    0 frozen   (never < 0)
-#
-#     STEPPED - a value holds until the next line, then snaps (no easing).
-#     It is x1 before the first line and HOLDS the last, so END WITH :1.
-#     Hidden is left alone while SV is running.
-#
-#     TIP: turn on EnableSvColor in the effect to tint + glow every object whose
-#     beat lands while SV is off x1 - a visual cue for the SV section. Colour set
-#     by SvColor. Hyperdashes keep their red glow.
-#
-# --- LOOP  (repeat a pattern without typing every keyframe) -------------------
-#
-#     loop <start> <beat-fraction> -> <end>
-#     <value>
-#     <value>
-#     ...
-#     end
-#
-#     Expands to plain time:value lines before anything else is read, so it works
-#     in [sv], in the AR/HD block, and in any [mod:*] block - put it under the
-#     right header.
-#
-#     start           ms of the FIRST keyframe (snapped onto osu!'s beat grid).
-#     beat-fraction   spacing as a fraction of a beat: 1/2, 3/4, 2/3, 5/7, or a
-#                     plain decimal (0.5). Follows the map's red-line BPM, re-anchoring
-#                     on each red line it crosses, so it lands exactly where the editor
-#                     would snap it - even across BPM changes.
-#     end             ms; keyframes run up to AND INCLUDING this time (an END
-#                     TIME, not a count). The '->' is optional.
-#     values          the part AFTER 'time:' - "0.5", "1", "9:sine", "-:hd=3".
-#                     They cycle in order, one per keyframe (2 values, 6 beats =>
-#                     A B A B A B).
-#
-#     Only WHOLE cycles are emitted, so the loop ALWAYS ends on the last value: a
-#     partial cycle that would fit before 'end' is dropped (A,B over 5 slots gives
-#     A B A B, not A B A B A). Pick 'end' with a little room; you don't have to hit
-#     it exactly.
-#
-#     Times match osu!'s editor rounding exactly, so a loop reproduces hand-placed
-#     notes tick for tick. A red line inside the span RE-ANCHORS the grid to it, so a
-#     loop that crosses a BPM change keeps snapping to the real beats.
-#
-# --- HOLD  (mania-style "hold then snap" SV, in one line) --------------------
-#
-#     hold <start> <beat-fraction> <slow> <fast> -> <end>
-#
-#     The classic mania hold: every object creeps down at <slow>, then SNAPS the
-#     last stretch at <fast>, still landing exactly on its beat. Instead of hand-
-#     writing a long loop of <slow> keyframes with one <fast> at the end, 'hold'
-#     scans the objects in the window and builds it for you - and auto-fits each
-#     gap: a 1-beat gap gets a short hold, a 2-beat gap a longer one, re-anchoring
-#     across BPM changes. Put it under the [sv] header.
-#
-#     start           ms of the first keyframe (snapped onto osu!'s beat grid).
-#     beat-fraction   the grid the creep steps on: 1/16, 1/8, a decimal, etc.
-#                     Finer = smoother creep and a tighter snap.
-#     slow            fall speed while holding   (e.g. 0.1, a slow crawl).
-#     fast            fall speed of the snap     (e.g. 10, a rapid drop).
-#     end             ms the hold covers objects up to. '->' is optional. SV
-#                     returns to x1 at 'end' automatically.
-#
-#     Every catchable object (fruit, droplet, banana) snaps on the division it
-#     lands in, so nothing ever crawls into the catcher. Dense streams have no
-#     room to hold and mostly snap; sparse rhythms give the big hold-then-drop.
-#
-# --- EXAMPLES  (copy under WRITE BELOW, then delete the leading '#') ----------
-#
-#     ~smooth AR ride~
-#     0:8
-#     45000:10
-#     90000:9.5
-#
-#     ~sudden AR spike + Hidden on, in one line~
-#     120000:10.5:after:hd=5
-#
-#     ~Fade In + Hidden together: a middle reading window from 60s on~
-#     60000:9:hd=5:fi=5
-#     90000:9:hd=5:fi=8      # window tightens (revealed lower) toward the drop
-#
-#     ~Hidden fades in 60->65s, out 90->95s, AR steady~
-#     60000:9:hd=0
-#     65000:9:hd=5
-#     90000:9:hd=5
-#     95000:9:hd=0
-#
-#     ~SV: rush / freeze / creep / recover~
-#     [sv]
-#     60000:6
-#     60500:0
-#     60900:0.15
-#     61200:1
-#
-#     ~SV: an alternating half-beat wobble from 60s to 64s, no typing 16 lines~
-#     [sv]
-#     loop 60000 1/2 -> 64000
-#     2
+#     loop 60000 1/2 -> 64000    repeat a pattern until 'end' (values cycle,
+#     2                          one per beat-fraction: 2, 0.5, 2, 0.5, ...)
 #     0.5
 #     end
-#     64000:1
 #
-#     ~SV: mania hold-then-snap on 1/16 from 95.8s to 111.7s (crawl, then drop)~
-#     [sv]
-#     hold 95801 1/16 0.1 10 -> 111747
+#     hold 95801 1/16 0.1 10 -> 111747    mania hold-then-snap (crawl, then drop)
+#
+#   Every feature, every flag, and copy-paste examples are in the full guide:
+#     https://steelplank.github.io/VAM-SF/PROFILE/
 #
 # ============================  WRITE BELOW  ==================================

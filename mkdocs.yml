@@ -1,0 +1,74 @@
+site_name: "VAM:SF"
+site_description: "Variable AR Modification - a storyboard framework for osu!catch"
+# Set these to your repo/pages URLs before deploying:
+site_url: "https://steelplank.github.io/VAM-SF/"
+repo_url: "https://github.com/steelplank/VAM-SF"
+repo_name: "VAM-SF"
+docs_dir: docs
+
+theme:
+  name: material
+  logo: logo-dark.png
+  favicon: cookie.png
+  palette:
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: pink
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: pink
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+  features:
+    - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.top
+    - navigation.footer
+    - navigation.sections
+    - toc.follow
+    - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - search.suggest
+    - search.highlight
+    - search.share
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.inlinehilite
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.caret
+  - pymdownx.tilde
+  - pymdownx.mark
+  - pymdownx.keys
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+nav:
+  - Home: index.md
+  - Install (easy): EZ_INSTALL.md
+  - Install: INSTALL.md
+  - Full guide: GUIDE.md
+  - Profile reference: PROFILE.md
+  - Examples: EXAMPLES.md
+  - FAQ: FAQ.md

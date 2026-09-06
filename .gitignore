@@ -11,3 +11,6 @@ Thumbs.db
 # built release zips
 *.zip
 docs/TODO.md
+# python venv + mkdocs build output
+.venv/
+site/

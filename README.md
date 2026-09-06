@@ -44,7 +44,7 @@ Using storyboard and overlay layer, we can generate gameplay objects identical t
 - **Miss Simulator** - fake "osu-like" simulation of a miss where the object will fall below the platter. (fruits-only feature)
 - **Countdown** - overlay can and will cover osu! built-in countdown so we have our own implementation!
 - **Cover with background support** - you should always use cover together with the generator but nobody said it has to be pure black.
-- **Map Combo Colors** - an option to use map combo colors. (work in progress)
+- **Map Combo Colors** - an option to use map combo colors. (experimental)
 - **Publish-ready script** - included some quality-of-life scripts that will make mass-edits easy and quick.
 - **Custom interpreter** - program keyframes and all efects in one file thanks to a robust interpreter. Now including loop statements!
 - **Mod support** - make own mods for the engine and share them with others! Basic template and example mod included, seamless integration with profile file.
@@ -61,7 +61,7 @@ Using storyboard and overlay layer, we can generate gameplay objects identical t
 3. Run **`Install.bat`** and choose **Install**.
 4. In storybrew, add the effects and set the cover's OSB layers.
 
-See the full guide: **[INSTALL.md](package/VAM-SF/INSTALL.md)** - scripted and manual install, storybrew setup, managing an install, and publishing.
+See the full guide: **[INSTALL.md](docs/INSTALL.md)** - scripted and manual install, storybrew setup, managing an install, and publishing.
 
 EXTRA: see the full guide for non-technical audience (thanks trig0n for extra work): **[EZ_INSTALL.md](docs/EZ_INSTALL.md)**
 
@@ -129,6 +129,12 @@ Highly recommend working on one difficulty, exporting .osb for the entire set, t
 Run it with **Windows PowerShell** - `System.Drawing` isn't in other shells. And keep the whole **`VAM-SF`** folder **inside your storybrew project** (the folder with the `.sbrew` file), or pass `-ProjectPath "<project folder>"`.
 
 </details>
+
+## Support & feedback
+
+Found a bug or have a feature idea? Open a **[GitHub issue](../../issues)** - that's the place for anything actionable, and it's how VAM:SF gets better.
+
+For "how do I..." questions, ping me as **@Malai** on Discord (I'm around the catch mapping servers) rather than the tracker - issues are for bugs and requests, and the **[EZ guide](docs/EZ_INSTALL.md)** and **[GUIDE](docs/GUIDE.md)** already answer most of the common ones.
 
 ## Credits
 
