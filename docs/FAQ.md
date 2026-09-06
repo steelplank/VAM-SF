@@ -45,6 +45,13 @@ Quick answers to the questions that come up most. If something here doesn't fix 
 
 ---
 
+## Performance
+
+??? question "Frame time slowly creeps up over a long map / it gets laggy toward the end."
+    Turn off **`EnableCatchMiss`** on VAM_Generator (it's off by default as of the latest build). The miss simulation puts a storyboard hitsound trigger on every fruit, and osu! stable pins any trigger sprite as `AlwaysDraw` - so those sprites are never retired from the per-frame update loop and pile up for the whole map. The result is frame time that climbs steadily as the map plays, no matter how sparse the current section is. It's an osu! stable engine limitation, not something the storyboard can fix, so leave miss simulation off unless the map is short and you specifically want the effect.
+
+---
+
 ## Support and feedback
 
 Found a bug or have a feature idea? Open a **[GitHub issue](https://github.com/steelplank/VAM-SF/issues)** - that's the place for anything actionable, and it's how VAM:SF gets better.

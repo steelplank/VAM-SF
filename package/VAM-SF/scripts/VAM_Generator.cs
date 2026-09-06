@@ -23,8 +23,8 @@ namespace StorybrewScripts
         [Configurable] public bool UseSkinSprites = false;
         [Description("Uses map combo colors for the objects. Experimental - off by default.")]
         [Configurable] public bool UseComboColors = false;
-        [Description("My best attempt at detecting misses and drawing them during gameplay. Only fruits are detectable.")]
-        [Configurable] public bool EnableCatchMiss = true;
+        [Description("My best attempt at detecting misses and drawing them during gameplay. Only fruits are detectable. OFF BY DEFAULT: it relies on storyboard hitsound triggers, which osu! stable pins as AlwaysDraw so they never leave the update loop - on long maps this makes frame time creep up over the whole map. Turn on only for short maps.")]
+        [Configurable] public bool EnableCatchMiss = false;
         [Description("Rotate objects like osu. Uses per-object RNG but wasn't well tested.")]
         [Configurable] public bool RotateObjects = true;
         [Description("Enable fake hidden. Using default osu! values. You have to turn it on if you have hidden keyframes.")]

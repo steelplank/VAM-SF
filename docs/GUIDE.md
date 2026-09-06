@@ -129,11 +129,14 @@ An "osu-like" fake miss: when the plate wouldn't have caught a fruit, it keeps f
 
 | Setting | Default | What it does |
 |---------|---------|--------------|
-| `EnableCatchMiss` | true | Draw missed objects falling past the plate. Fruits only - droplets/bananas aren't detectable. |
+| `EnableCatchMiss` | **false** | Draw missed objects falling past the plate. Fruits only - droplets/bananas aren't detectable. |
 | `MissFadeDuration` | 250 | Milliseconds a missed object keeps falling past the plate (osu! uses 250). |
 | `CatchTriggerWindow` | 5 | Half-width (ms) of the HitSound match window, auto-clamped to half the gap to the nearest fruit. Advanced; rarely needs changing. |
 
 This is a best-effort detection based on hitsounds, so it's approximate - accurate enough to look right, not a real judgement.
+
+!!! danger "Off by default - it makes long maps lag"
+    Miss detection works by putting a storyboard **hitsound trigger** on every fruit. osu! stable pins any trigger sprite as `AlwaysDraw`, so those sprites are never retired from the per-frame update loop - they pile up for the whole map. On a long map this makes frame time **creep upward over time** (e.g. 0.25 ms early climbing past 0.40 ms later), regardless of how dense the current section is. It's an osu! stable engine limitation, not something the storyboard can work around. Leave `EnableCatchMiss` **off** unless the map is short and you specifically want the effect.
 
 ### Skin support
 
