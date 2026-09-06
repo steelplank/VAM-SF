@@ -12,7 +12,12 @@
 
 VAM renders a pixel-accurate storyboard copy of an osu!catch map with a fake dynamic Approach Rate, fake Hidden, mania-style Scroll Velocity, and more!
 
-![status](https://img.shields.io/badge/status-alpha%20v0.32-orange)
+![version](https://img.shields.io/badge/version-1.0.0-blue)
+[![docs](https://img.shields.io/badge/docs-steelplank.github.io-ec4899)](https://steelplank.github.io/VAM-SF/)
+
+### Full documentation: **[steelplank.github.io/VAM-SF](https://steelplank.github.io/VAM-SF/)**
+
+Install steps, the profile syntax, copy-paste examples, and the FAQ all live on the docs site - much easier to read than the raw files here.
 
 | Dynamic AR | Scroll Velocity |
 |:---:|:---:|
@@ -21,6 +26,16 @@ VAM renders a pixel-accurate storyboard copy of an osu!catch map with a fake dyn
 | Fake Hidden | Skin Support |
 |:---:|:---:|
 | ![](docs/hd.gif) | ![](docs/skin.gif) |
+
+## Showcase
+
+<p align="center">
+  <a href="https://youtu.be/LUY3zBq9lSM">
+    <img src="https://img.youtube.com/vi/LUY3zBq9lSM/maxresdefault.jpg" alt="VAM:SF showcase video - click to watch on YouTube" width="640">
+  </a>
+  <br>
+  <i>Click to watch the showcase on YouTube.</i>
+</p>
 
 ---
 
@@ -61,17 +76,29 @@ Using storyboard and overlay layer, we can generate gameplay objects identical t
 3. Run **`Install.bat`** and choose **Install**.
 4. In storybrew, add the effects and set the cover's OSB layers.
 
-See the full guide: **[INSTALL.md](docs/INSTALL.md)** - scripted and manual install, storybrew setup, managing an install, and publishing.
+See the full guide: **[Install guide](https://steelplank.github.io/VAM-SF/INSTALL/)** - scripted and manual install, storybrew setup, managing an install, and publishing.
 
-EXTRA: see the full guide for non-technical audience (thanks trig0n for extra work): **[EZ_INSTALL.md](docs/EZ_INSTALL.md)**
+EXTRA: see the full guide for non-technical audience (thanks trig0n for extra work): **[Easy install guide](https://steelplank.github.io/VAM-SF/EZ_INSTALL/)**
 
 ## Configuring
 
 Program AR, Hidden, and Scroll Velocity over time in **`VAM-profile.txt`** - the file documents its own syntax.
 
-For more detailed overview of all features, including creating your own mods, see **[GUIDE.md](docs/GUIDE.md)**
+For more detailed overview of all features, including creating your own mods, see the **[full guide](https://steelplank.github.io/VAM-SF/GUIDE/)**. Ready-to-paste profile snippets are on the **[examples page](https://steelplank.github.io/VAM-SF/EXAMPLES/)**.
+
+## Example maps
+
+Five maps built with VAM:SF, showing off dynamic AR, Scroll Velocity, hold-then-snap, and Hidden. Grab them individually on osu! (links below), or **[download the whole pack](https://malai.s-ul.eu/xODOVDan)**.
+
+- [**DM Ashura - deltaMAX**](https://osu.ppy.sh/beatmapsets/2616404#fruits/5867596)
+- [**PSYQUI - Hysteric Night Girl feat. Such (android52 Edit)**](https://osu.ppy.sh/beatmapsets/2616400#fruits/5867592)
+- [**Rabpit - Dream**](https://osu.ppy.sh/beatmapsets/2616398#fruits/5867590)
+- [**Risshuu feat. Choko - Take**](https://osu.ppy.sh/beatmapsets/2616402#fruits/5867594)
+- [**Unknown Artist - Yatsume Ana**](https://osu.ppy.sh/beatmapsets/2616403#fruits/5867595)
 
 ## FAQ
+
+The most common questions are below. There's a fuller, searchable version on the **[docs FAQ page](https://steelplank.github.io/VAM-SF/FAQ/)**.
 
 <details>
 <summary><b>The objects are invisible in storybrew!</b></summary>
@@ -134,11 +161,12 @@ Run it with **Windows PowerShell** - `System.Drawing` isn't in other shells. And
 
 Found a bug or have a feature idea? Open a **[GitHub issue](../../issues)** - that's the place for anything actionable, and it's how VAM:SF gets better.
 
-For "how do I..." questions, ping me as **@Malai** on Discord (I'm around the catch mapping servers) rather than the tracker - issues are for bugs and requests, and the **[EZ guide](docs/EZ_INSTALL.md)** and **[GUIDE](docs/GUIDE.md)** already answer most of the common ones.
+For "how do I..." questions, ping me as **@Malai** on Discord (I'm around the catch mapping servers) rather than the tracker - issues are for bugs and requests, and the **[easy guide](https://steelplank.github.io/VAM-SF/EZ_INSTALL/)** and **[full guide](https://steelplank.github.io/VAM-SF/GUIDE/)** already answer most of the common ones.
 
 ## Credits
 
 - Phob - provided almost entire beatmap converter <3
+- PWD staff including poolers, mappers, and map testers - for being my beta testers, reporting issues, and suggesting changes
 
 ## License
 

@@ -9,6 +9,13 @@
 
 VAM renders a pixel-accurate storyboard copy of an osu!catch map with a dynamic Approach Rate, fake Hidden, mania-style Scroll Velocity, and more for osu! stable client.
 
+<figure markdown="span">
+  <a href="https://youtu.be/LUY3zBq9lSM">
+    <img src="https://img.youtube.com/vi/LUY3zBq9lSM/maxresdefault.jpg" alt="VAM:SF showcase video" width="600">
+  </a>
+  <figcaption><a href="https://youtu.be/LUY3zBq9lSM">Watch the showcase on YouTube</a></figcaption>
+</figure>
+
 <div class="grid cards" markdown>
 
 - **New here?**
