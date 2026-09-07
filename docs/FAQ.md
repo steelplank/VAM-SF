@@ -47,8 +47,12 @@ Quick answers to the questions that come up most. If something here doesn't fix 
 
 ## Performance
 
-??? question "Frame time slowly creeps up over a long map / it gets laggy toward the end."
-    Turn off **`EnableCatchMiss`** on VAM_Generator (it's off by default as of the latest build). The miss simulation puts a storyboard hitsound trigger on every fruit, and osu! stable pins any trigger sprite as `AlwaysDraw` - so those sprites are never retired from the per-frame update loop and pile up for the whole map. The result is frame time that climbs steadily as the map plays, no matter how sparse the current section is. It's an osu! stable engine limitation, not something the storyboard can fix, so leave miss simulation off unless the map is short and you specifically want the effect.
+Performance is first in priority when it comes to this set of tools. Because of that, I'm always checking impact of the storyboard on performance and have gathered a good collection of best practices:
+1. Most of the compute time is spent on sprites functions like move, fade, etc. Thankfully, it's not compute-heavy so an average map will be absolutely fine.
+2. At first, we deleted NCs and had entire map played on one combo. This is a problem when played without Hidden in-game as the amount of fruits on platter can tank performance over time. For that reason, we adviced to enable HD and most of the testers were fine with framerate. But after further testing, it seems that even with HD enabled in-game, having one continuous combo is slightly affecting performance. So it might not be the best practice forwards - for now the script to remove NCs is disabled.
+3. Turns out that EnableCatchMiss which is utilizing storyboard triggers is tanking performance over time even more than lack of NCs. Long story short, if something has a trigger, then it never "despawns" from the map. An option to have visible misses is super useful though so feel free to enable it on your maps but expect the ms to raise significantly on longer maps. I wouldn't recommend it for tournaments or sets going to ranked/loved section.
+
+> As I've mentioned, performance is extremely important to me. If you have suggestions on how to optimize it even further, or found any performance-affecting bugs, feel free to report them as soon as possible. Even if you don't know the exact cause, simply let me know that something is happening.
 
 ---
 
